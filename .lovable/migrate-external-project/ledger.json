@@ -1,0 +1,61 @@
+{
+  "source": "code archive (Lovable TanStack Start export)",
+  "capabilities": [
+    {
+      "capability": "code",
+      "source": "uploaded ZIP",
+      "outcome": "recreated",
+      "status": "verified",
+      "next_action": null
+    },
+    {
+      "capability": "schema",
+      "source": "none in source (frontend-only POC)",
+      "outcome": "none",
+      "status": "n/a",
+      "next_action": null
+    },
+    {
+      "capability": "records",
+      "source": "none (sample catalog is code-bundled)",
+      "outcome": "none",
+      "status": "n/a",
+      "next_action": null
+    },
+    {
+      "capability": "auth identities",
+      "source": "none",
+      "outcome": "none",
+      "status": "n/a",
+      "next_action": null
+    },
+    {
+      "capability": "uploaded file bytes",
+      "source": "flyer image kept in browser IndexedDB",
+      "outcome": "preserved",
+      "status": "verified",
+      "next_action": null
+    },
+    {
+      "capability": "external providers",
+      "source": "none",
+      "outcome": "none",
+      "status": "n/a",
+      "next_action": null
+    },
+    {
+      "capability": "public endpoints",
+      "source": "none",
+      "outcome": "none",
+      "status": "n/a",
+      "next_action": null
+    },
+    {
+      "capability": "persistence",
+      "source": "localStorage + IndexedDB (POC scope)",
+      "outcome": "preserved",
+      "status": "verified",
+      "next_action": "optional later: move to Lovable Cloud for multi-device persistence"
+    }
+  ]
+}
