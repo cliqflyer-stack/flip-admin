@@ -2,7 +2,9 @@ import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Check,
   ChevronRight,
+  ChevronsUpDown,
   Eye,
   Hand,
   Layers,
@@ -27,6 +29,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Select,
   SelectContent,
@@ -95,6 +110,7 @@ export function EditorView({
   // Editor states
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [categoryOpen, setCategoryOpen] = useState(false);
   const [drawProduct, setDrawProduct] = useState<ApiProduct | null>(null);
   const [zoom, setZoom] = useState(1.0);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -430,23 +446,53 @@ export function EditorView({
               />
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar text-[11px]">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={cn(
-                    "px-2 py-0.5 rounded-full capitalize shrink-0 font-medium transition-colors text-[10px]",
-                    selectedCategory === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                  )}
+            {/* Search & Select Category Combobox */}
+            <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={categoryOpen}
+                  className="w-full justify-between text-xs h-8 px-2.5 font-normal bg-background"
                 >
-                  {cat}
-                </button>
-              ))}
-            </div>
+                  <span className="truncate">
+                    {selectedCategory === "all" ? "All Categories" : selectedCategory}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search categories..." className="h-8 text-xs" />
+                  <CommandList>
+                    <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                      No category found.
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {categories.map((cat) => (
+                        <CommandItem
+                          key={cat}
+                          value={cat}
+                          onSelect={() => {
+                            setSelectedCategory(cat);
+                            setCategoryOpen(false);
+                          }}
+                          className="text-xs capitalize"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-3.5 w-3.5",
+                              selectedCategory === cat ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span>{cat === "all" ? "All Categories" : cat}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Active Placement Tool Banner */}
@@ -703,6 +749,55 @@ export function EditorView({
                 </Select>
               </div>
 
+              {/* Promotional Override (Flyer-specific) */}
+              <div className="space-y-2 p-2 bg-muted/40 rounded-md border text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-foreground">Flyer Price Override</span>
+                  {selectedHotspot.priceOverride && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateHotspot(selectedHotspot.id, { priceOverride: null, titleOverride: null })}
+                      className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                    >
+                      Reset Default
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground font-mono">$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder={assignedProduct ? Number(assignedProduct.offerPrice || 0).toFixed(2) : "0.00"}
+                      value={selectedHotspot.priceOverride ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? null : e.target.value;
+                        onUpdateHotspot(selectedHotspot.id, { priceOverride: val });
+                      }}
+                      className="h-7 text-xs font-mono"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Overrides base price ({assignedProduct ? `$${Number(assignedProduct.offerPrice || 0).toFixed(2)}` : "$0.00"}) for this circular.
+                  </p>
+                </div>
+
+                <div className="space-y-1 pt-1 border-t border-border/50">
+                  <label className="text-[10px] text-muted-foreground font-medium">Flyer Title / Badge Override</label>
+                  <Input
+                    type="text"
+                    placeholder={assignedProduct?.name || "Custom circular badge / headline"}
+                    value={selectedHotspot.titleOverride ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value === "" ? null : e.target.value;
+                      onUpdateHotspot(selectedHotspot.id, { titleOverride: val });
+                    }}
+                    className="h-7 text-xs"
+                  />
+                </div>
+              </div>
+
               {/* Coordinates */}
               <div className="grid grid-cols-2 gap-1.5 text-[10px] text-muted-foreground">
                 <div className="bg-background/80 p-1.5 rounded border">
@@ -751,8 +846,13 @@ export function EditorView({
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-foreground truncate">
-                        #{i + 1} {prod?.name || "Hotspot"}
+                      <p className="font-semibold text-foreground truncate flex items-center gap-1.5">
+                        <span className="truncate">#{i + 1} {h.titleOverride || prod?.name || "Hotspot"}</span>
+                        {h.priceOverride && (
+                          <span className="shrink-0 text-[10px] font-mono text-emerald-600 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20">
+                            ${Number(h.priceOverride).toFixed(2)}
+                          </span>
+                        )}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
                         {Math.round(h.x * 100)}%, {Math.round(h.y * 100)}% · {Math.round(h.width * 100)}%×{Math.round(h.height * 100)}%

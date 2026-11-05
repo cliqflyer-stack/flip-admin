@@ -132,6 +132,8 @@ function DynamicPreviewPage() {
           y: h.y,
           width: h.width,
           height: h.height,
+          priceOverride: h.priceOverride,
+          titleOverride: h.titleOverride,
         }))
       );
     } else {
@@ -160,11 +162,13 @@ function DynamicPreviewPage() {
   const selectedProduct = rawProduct
     ? {
         id: rawProduct.id,
-        name: rawProduct.name,
+        name: selectedHotspot?.titleOverride || rawProduct.name,
         brand: rawProduct.brand,
         description: rawProduct.description || "",
         regularPrice: Number(rawProduct.originalPrice || rawProduct.regularPrice || rawProduct.offerPrice || 0),
-        offerPrice: Number(rawProduct.offerPrice || 0),
+        offerPrice: selectedHotspot?.priceOverride
+          ? Number(selectedHotspot.priceOverride)
+          : Number(rawProduct.offerPrice || 0),
         imageUrl: resolveImageUrl(rawProduct.imageUrl || (rawProduct as any).image),
         category: rawProduct.category,
       }

@@ -17,6 +17,8 @@ export interface Hotspot {
   y: number;
   width: number;
   height: number;
+  priceOverride?: string | null;
+  titleOverride?: string | null;
 }
 
 export interface FlyerMeta {
@@ -31,6 +33,8 @@ export interface HotspotRect {
   y: number;
   width: number;
   height: number;
+  priceOverride?: string | null;
+  titleOverride?: string | null;
 }
 
 const META_KEY = "idflyer.meta";

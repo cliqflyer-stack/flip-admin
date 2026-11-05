@@ -265,15 +265,21 @@ export default function FlyerEditorCanvas({
               if (!product) return null;
               const labelY = Math.max(4, hotspot.y * stageHeight - 20);
               const isSelected = hotspot.id === selectedId;
+              const displayPrice = hotspot.priceOverride
+                ? Number(hotspot.priceOverride)
+                : Number(product.offerPrice || 0);
+              const isCustom = Boolean(hotspot.priceOverride);
+              const displayName = hotspot.titleOverride || product.name;
+
               return (
                 <Text
                   key={`label-${hotspot.id}`}
                   x={hotspot.x * stageWidth}
                   y={labelY}
-                  text={`${product.name} ($${Number(product.offerPrice || 0).toFixed(2)})`}
+                  text={`${displayName} ($${displayPrice.toFixed(2)})${isCustom ? " • Special" : ""}`}
                   fontSize={Math.max(10, Math.min(13, Math.round(11 * zoom)))}
                   fontStyle="600"
-                  fill={isSelected ? STROKE_SELECTED : STROKE_IDLE}
+                  fill={isSelected ? STROKE_SELECTED : isCustom ? "#16a34a" : STROKE_IDLE}
                   shadowColor="rgba(255,255,255,0.95)"
                   shadowBlur={4}
                   listening={false}

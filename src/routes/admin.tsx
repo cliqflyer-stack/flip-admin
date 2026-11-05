@@ -145,6 +145,8 @@ function AdminContent() {
                   y: h.y,
                   width: h.width,
                   height: h.height,
+                  priceOverride: h.priceOverride,
+                  titleOverride: h.titleOverride,
                 }))
               );
             }
@@ -183,6 +185,8 @@ function AdminContent() {
               y: h.y,
               width: h.width,
               height: h.height,
+              priceOverride: h.priceOverride,
+              titleOverride: h.titleOverride,
             }))
           );
         }
@@ -239,6 +243,8 @@ function AdminContent() {
           y: h.y,
           width: h.width,
           height: h.height,
+          priceOverride: h.priceOverride,
+          titleOverride: h.titleOverride,
         }))
       );
     } else {
@@ -287,6 +293,8 @@ function AdminContent() {
         y: Number(h.y.toFixed(4)),
         width: Number(h.width.toFixed(4)),
         height: Number(h.height.toFixed(4)),
+        priceOverride: h.priceOverride ? String(h.priceOverride) : undefined,
+        titleOverride: h.titleOverride || undefined,
       }));
 
       const res = await saveHotspotsBatch(selectedFlyerId, payload);

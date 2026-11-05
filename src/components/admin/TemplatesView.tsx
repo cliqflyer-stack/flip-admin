@@ -3,10 +3,12 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
+  ChevronsUpDown,
   Copy,
   Layers,
   Loader2,
   Plus,
+  Search,
   Sparkles,
   Store,
   Tag,
@@ -20,6 +22,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   TEMPLATES_LIBRARY,
   type FlyerTemplate,
@@ -48,6 +59,8 @@ export function TemplatesView({
   currentFlyer,
 }: TemplatesViewProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
   const [activeTemplate, setActiveTemplate] = useState<FlyerTemplate | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -56,9 +69,15 @@ export function TemplatesView({
 
   const categories = ["all", "Grocery", "Pharmacy", "Hardware", "Retail"];
 
-  const filteredTemplates = TEMPLATES_LIBRARY.filter(
-    (t) => selectedCategory === "all" || t.category === selectedCategory
-  );
+  const filteredTemplates = TEMPLATES_LIBRARY.filter((t) => {
+    const matchesCategory = selectedCategory === "all" || t.category === selectedCategory;
+    const matchesSearch =
+      !templateSearch.trim() ||
+      t.title.toLowerCase().includes(templateSearch.toLowerCase()) ||
+      t.description.toLowerCase().includes(templateSearch.toLowerCase()) ||
+      t.category.toLowerCase().includes(templateSearch.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const handleOpenUseTemplate = (tpl: FlyerTemplate) => {
     setActiveTemplate(tpl);
@@ -131,27 +150,90 @@ export function TemplatesView({
           </p>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`rounded-lg px-3 py-1.5 font-medium transition-colors ${
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-muted text-muted-foreground hover:bg-accent"
-              }`}
-            >
-              {cat === "all" ? "All Templates" : cat}
-            </button>
-          ))}
+        {/* Search & Category Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Template Title/Keyword Search */}
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search templates..."
+              value={templateSearch}
+              onChange={(e) => setTemplateSearch(e.target.value)}
+              className="pl-8 h-8 text-xs bg-background"
+            />
+          </div>
+
+          {/* Search & Select Category Combobox */}
+          <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={categoryOpen}
+                size="sm"
+                className="h-8 min-w-[150px] justify-between text-xs"
+              >
+                <span>
+                  {selectedCategory === "all"
+                    ? "All Categories"
+                    : selectedCategory}
+                </span>
+                <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[180px] p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Search category..." className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                    No category found.
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {categories.map((cat) => (
+                      <CommandItem
+                        key={cat}
+                        value={cat}
+                        onSelect={() => {
+                          setSelectedCategory(cat);
+                          setCategoryOpen(false);
+                        }}
+                        className="text-xs flex items-center justify-between"
+                      >
+                        <span>{cat === "all" ? "All Categories" : cat}</span>
+                        {selectedCategory === cat && <Check className="h-3 w-3 text-primary" />}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
       {/* Templates Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredTemplates.map((tpl) => (
+      {filteredTemplates.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-12 text-center bg-card">
+          <p className="text-sm font-semibold text-foreground">No templates match your filter</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Try resetting your category filter or searching for another retail circular style.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedCategory("all");
+              setTemplateSearch("");
+            }}
+            className="mt-4 text-xs"
+          >
+            Reset Filters
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredTemplates.map((tpl) => (
           <Card
             key={tpl.id}
             className="group overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col justify-between border"
@@ -225,6 +307,7 @@ export function TemplatesView({
           </Card>
         ))}
       </div>
+      )}
 
       {/* Modal: Instantiate Flyer from Template */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

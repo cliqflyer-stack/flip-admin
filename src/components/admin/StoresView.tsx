@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  Check,
+  ChevronsUpDown,
   Edit2,
   Eye,
   LayoutGrid,
@@ -18,6 +20,15 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   deleteStoreLocation,
   resolveImageUrl,
@@ -50,10 +61,13 @@ export function StoresView({
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [search, setSearch] = useState("");
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("all");
+  const [brandOpen, setBrandOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedMapStoreId, setSelectedMapStoreId] = useState<string>(
     storeLocations[0]?.id || ""
   );
+
+  const selectedMerchant = merchants.find((m) => m.id === selectedMerchantId);
 
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
 
@@ -173,37 +187,82 @@ export function StoresView({
             />
           </div>
 
-          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 text-xs">
-            <span className="text-muted-foreground text-[11px] font-semibold mr-1 shrink-0">Brand:</span>
-            <button
-              onClick={() => setSelectedMerchantId("all")}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                selectedMerchantId === "all"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-muted text-muted-foreground hover:bg-accent"
-              }`}
-            >
-              All Brands
-            </button>
-            {merchants.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setSelectedMerchantId(m.id)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
-                  selectedMerchantId === m.id
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-muted text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                <span
-                  className="inline-flex h-3.5 w-3.5 items-center justify-center rounded text-[9px] font-bold"
-                  style={{ backgroundColor: m.logoBg, color: m.logoColor }}
+          {/* Search & Select Brand Combobox */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-muted-foreground text-xs font-medium shrink-0">Brand:</span>
+            <Popover open={brandOpen} onOpenChange={setBrandOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={brandOpen}
+                  size="sm"
+                  className="h-8 min-w-[170px] justify-between text-xs"
                 >
-                  {m.initial}
-                </span>
-                <span>{m.name}</span>
-              </button>
-            ))}
+                  <div className="flex items-center gap-2 truncate">
+                    {selectedMerchant ? (
+                      <>
+                        <span
+                          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-bold"
+                          style={{ backgroundColor: selectedMerchant.logoBg, color: selectedMerchant.logoColor }}
+                        >
+                          {selectedMerchant.initial}
+                        </span>
+                        <span className="truncate">{selectedMerchant.name}</span>
+                      </>
+                    ) : (
+                      <span>All Brands</span>
+                    )}
+                  </div>
+                  <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[220px] p-0" align="end">
+                <Command>
+                  <CommandInput placeholder="Search brand..." className="h-8 text-xs" />
+                  <CommandList>
+                    <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                      No brand found.
+                    </CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all-brands"
+                        onSelect={() => {
+                          setSelectedMerchantId("all");
+                          setBrandOpen(false);
+                        }}
+                        className="text-xs flex items-center justify-between"
+                      >
+                        <span>All Brands</span>
+                        {selectedMerchantId === "all" && <Check className="h-3 w-3 text-primary" />}
+                      </CommandItem>
+                      {merchants.map((m) => (
+                        <CommandItem
+                          key={m.id}
+                          value={m.name}
+                          onSelect={() => {
+                            setSelectedMerchantId(m.id);
+                            setBrandOpen(false);
+                          }}
+                          className="text-xs flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span
+                              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-bold"
+                              style={{ backgroundColor: m.logoBg, color: m.logoColor }}
+                            >
+                              {m.initial}
+                            </span>
+                            <span className="truncate">{m.name}</span>
+                          </div>
+                          {selectedMerchantId === m.id && <Check className="h-3 w-3 text-primary" />}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>

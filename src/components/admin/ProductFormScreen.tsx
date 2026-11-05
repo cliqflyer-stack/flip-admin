@@ -403,7 +403,7 @@ export function ProductFormScreen({
                     )}
                   >
                     <img
-                      src={preset.url}
+                      src={resolveImageUrl(preset.url)}
                       alt={preset.label}
                       className="h-10 w-10 object-contain rounded"
                     />
