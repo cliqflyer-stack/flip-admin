@@ -16,6 +16,7 @@ import {
   Tag,
   Trash2,
   Upload,
+  X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -26,6 +27,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   resolveImageUrl,
   type ApiFlyer,
@@ -50,8 +58,8 @@ interface EditorViewProps {
   hotspots: Hotspot[];
   selectedHotspotId: string | null;
   onSelectHotspot: (id: string | null) => void;
-  onCreateHotspot: (rect: HotspotRect) => void;
-  onUpdateHotspot: (id: string, rect: HotspotRect) => void;
+  onCreateHotspot: (rect: HotspotRect, productId?: string) => void;
+  onUpdateHotspot: (id: string, update: Partial<Hotspot>) => void;
   onDeleteHotspot: (id: string) => void;
   onSaveToDatabase: () => Promise<void>;
   isSaving: boolean;
@@ -128,6 +136,7 @@ export function EditorView({
     return matchesSearch && matchesCategory;
   });
 
+  const selectedHotspotIndex = hotspots.findIndex((h) => h.id === selectedHotspotId);
   const selectedHotspot = hotspots.find((h) => h.id === selectedHotspotId);
   const selectedProduct = selectedHotspot
     ? catalogProducts.find((p) => p.id === selectedHotspot.productId)
@@ -159,76 +168,72 @@ export function EditorView({
               placeholder="Search stores or cities..."
               value={storeSearch}
               onChange={(e) => setStoreSearch(e.target.value)}
-              className="h-8 pl-8 text-xs"
+              className="pl-8 text-xs"
             />
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Chain-wide / Universal brands */}
-          {merchants.map((merch) => {
-            const merchFlyers = flyers.filter((f) => f.merchantId === merch.id);
-            const merchLocations = storeLocations.filter((l) => l.merchantId === merch.id);
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredStores.map((store) => {
+            const merch = merchants.find((m) => m.id === store.merchantId);
+            const storeFlyers = flyers.filter((f) => f.storeLocationId === store.id);
+
             return (
               <Card
-                key={merch.id}
-                onClick={() => setSelectedStoreId(`merchant_${merch.id}`)}
-                className="cursor-pointer hover:border-primary transition-all p-4 flex flex-col justify-between border shadow-xs"
+                key={store.id}
+                onClick={() => setSelectedStoreId(store.id)}
+                className="cursor-pointer hover:border-primary/60 transition-all hover:shadow-sm"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold"
-                      style={{ backgroundColor: merch.logoBg, color: merch.logoColor }}
-                    >
-                      {merch.initial}
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">
+                      {merch?.name || "Retail Brand"}
                     </span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {merchFlyers.length} Circular{merchFlyers.length === 1 ? "" : "s"}
+                    <Badge variant="secondary" className="text-[10px]">
+                      {storeFlyers.length} {storeFlyers.length === 1 ? "circular" : "circulars"}
                     </Badge>
                   </div>
-                  <h3 className="font-semibold text-sm text-foreground">{merch.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Chain-wide flyers & {merchLocations.length} store branch{merchLocations.length === 1 ? "" : "es"}
-                  </p>
-                </div>
-                <div className="mt-4 pt-2 border-t flex items-center justify-between text-xs text-primary font-medium">
-                  <span>Browse Circulars</span>
+                  <CardTitle className="text-sm font-bold mt-1">{store.name}</CardTitle>
+                  <CardDescription className="text-xs flex items-center gap-1 mt-0.5">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span>{store.city}, {store.province}</span>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{store.address}</span>
                   <ChevronRight className="h-4 w-4" />
-                </div>
+                </CardContent>
               </Card>
             );
           })}
 
-          {/* Individual store locations */}
-          {filteredStores.map((loc) => {
-            const merch = merchants.find((m) => m.id === loc.merchantId);
-            const storeFlyers = flyers.filter((f) => f.storeLocationId === loc.id);
+          {/* Fallback chain-wide merchants */}
+          {merchants.map((m) => {
+            const chainFlyers = flyers.filter((f) => f.merchantId === m.id && !f.storeLocationId);
             return (
               <Card
-                key={loc.id}
-                onClick={() => setSelectedStoreId(loc.id)}
-                className="cursor-pointer hover:border-primary transition-all p-4 flex flex-col justify-between border shadow-xs"
+                key={`merch_${m.id}`}
+                onClick={() => setSelectedStoreId(`merchant_${m.id}`)}
+                className="cursor-pointer hover:border-primary/60 transition-all hover:shadow-sm border-dashed"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      <span className="text-[11px] font-medium text-muted-foreground">
-                        {loc.city}, {loc.province}
-                      </span>
-                    </div>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {storeFlyers.length} Store Flyer{storeFlyers.length === 1 ? "" : "s"}
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Chain-wide
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {chainFlyers.length} {chainFlyers.length === 1 ? "circular" : "circulars"}
                     </Badge>
                   </div>
-                  <h3 className="font-semibold text-sm text-foreground">{loc.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{loc.address}</p>
-                </div>
-                <div className="mt-4 pt-2 border-t flex items-center justify-between text-xs text-primary font-medium">
-                  <span>Open Store Studio</span>
+                  <CardTitle className="text-sm font-bold mt-1">{m.name}</CardTitle>
+                  <CardDescription className="text-xs">
+                    All Locations / Online Circulars
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>National chain</span>
                   <ChevronRight className="h-4 w-4" />
-                </div>
+                </CardContent>
               </Card>
             );
           })}
@@ -237,113 +242,89 @@ export function EditorView({
     );
   }
 
-  // --- STEP 2: STORE CIRCULARS VIEW (when store is picked, but flyer not opened yet) ---
-  if (!selectedFlyerId && selectedStoreId) {
-    const isBrandLevel = selectedStoreId.startsWith("merchant_");
-    const activeMerchantId = isBrandLevel ? selectedStoreId.replace("merchant_", "") : null;
-    const activeLocation = !isBrandLevel ? storeLocations.find((l) => l.id === selectedStoreId) : null;
-    const activeMerchant = isBrandLevel
-      ? merchants.find((m) => m.id === activeMerchantId)
-      : merchants.find((m) => m.id === activeLocation?.merchantId);
+  // --- STEP 2: STORE CIRCULARS LIST (when store selected, but no flyer clicked yet) ---
+  if (selectedStoreId && !selectedFlyerId) {
+    const isChain = selectedStoreId.startsWith("merchant_");
+    const rawMerchantId = isChain ? selectedStoreId.replace("merchant_", "") : null;
+    const storeObj = !isChain ? storeLocations.find((s) => s.id === selectedStoreId) : null;
+    const merchantObj = isChain
+      ? merchants.find((m) => m.id === rawMerchantId)
+      : merchants.find((m) => m.id === storeObj?.merchantId);
 
-    const storeFlyers = flyers.filter((f) => {
-      if (isBrandLevel) {
-        return f.merchantId === activeMerchantId;
-      }
-      return f.storeLocationId === selectedStoreId || (f.merchantId === activeLocation?.merchantId && !f.storeLocationId);
-    });
+    const storeFlyers = isChain
+      ? flyers.filter((f) => f.merchantId === rawMerchantId && !f.storeLocationId)
+      : flyers.filter((f) => f.storeLocationId === selectedStoreId);
 
     return (
       <div className="p-6 max-w-5xl mx-auto space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+        <div className="flex items-center justify-between border-b pb-4">
           <div className="flex items-center gap-3">
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={() => setSelectedStoreId(null)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8"
+              title="Back to Stores"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight">
-                  {activeLocation ? activeLocation.name : activeMerchant?.name}
-                </h1>
-                <Badge variant="outline" className="text-xs">
-                  {storeFlyers.length} Circulars
-                </Badge>
+                <span className="text-xs text-muted-foreground">{merchantObj?.name}</span>
+                <span className="text-xs text-muted-foreground">/</span>
+                <span className="text-xs font-semibold">{storeObj?.name || "Chain-wide Circulars"}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {activeLocation
-                  ? `${activeLocation.address}, ${activeLocation.city} · Select a circular to edit hotspots`
-                  : "Chain-wide flyers · Select a circular to edit hotspots"}
-              </p>
+              <h1 className="text-xl font-bold tracking-tight">Available Circulars</h1>
             </div>
           </div>
 
           <Button
             size="sm"
             onClick={onOpenUpload}
-            className="h-8 gap-1.5 text-xs font-semibold bg-primary text-primary-foreground shadow-xs"
+            className="h-8 gap-1.5 text-xs font-medium"
           >
             <Plus className="h-3.5 w-3.5" />
-            New Flyer
+            <span>Upload New Circular</span>
           </Button>
         </div>
 
         {storeFlyers.length === 0 ? (
-          <Card className="p-12 text-center border-dashed">
-            <h3 className="font-semibold text-sm">No circulars found for this store</h3>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-              Upload a digital flyer circular for this location to start mapping shoppable product hotspots.
-            </p>
-            <Button size="sm" onClick={onOpenUpload} className="mt-4 gap-1.5 text-xs">
-              <Upload className="h-3.5 w-3.5" /> Upload Flyer
+          <div className="border border-dashed rounded-lg p-12 text-center space-y-3">
+            <p className="text-sm font-semibold text-foreground">No circulars published for this location yet</p>
+            <p className="text-xs text-muted-foreground">Upload a digital circular to map interactive hotspots.</p>
+            <Button size="sm" onClick={onOpenUpload} className="h-8 gap-1.5 text-xs">
+              <Upload className="h-3.5 w-3.5" />
+              <span>Upload Circular</span>
             </Button>
-          </Card>
+          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {storeFlyers.map((flyer) => (
               <Card
                 key={flyer.id}
                 onClick={() => onSelectFlyer(flyer.id)}
-                className="cursor-pointer hover:border-primary hover:shadow-md transition-all overflow-hidden flex flex-col justify-between border shadow-xs"
+                className="group cursor-pointer overflow-hidden border hover:border-primary/60 transition-all hover:shadow-md flex flex-col"
               >
-                <div>
-                  <div className="relative aspect-[16/10] bg-muted/40 overflow-hidden border-b">
-                    <img
-                      src={resolveImageUrl(flyer.flyerImageUrl)}
-                      alt={flyer.title}
-                      className="h-full w-full object-cover object-top"
-                    />
-                    <div className="absolute top-2 left-2 flex items-center gap-1">
-                      <Badge variant="default" className="text-[10px] uppercase font-bold">
-                        {flyer.status}
-                      </Badge>
-                      {flyer.badgeText && (
-                        <Badge variant="outline" className="text-[10px] bg-background/90 font-semibold">
-                          {flyer.badgeText}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white">
-                      {flyer.hotspots?.length || 0} hotspots
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <h3 className="font-semibold text-sm text-foreground">{flyer.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {flyer.subtitle || "Weekly digital circular"}
-                    </p>
+                <div className="aspect-[4/5] bg-muted/30 overflow-hidden relative border-b">
+                  <img
+                    src={resolveImageUrl(flyer.flyerImageUrl)}
+                    alt={flyer.title}
+                    className="h-full w-full object-cover group-hover:scale-102 transition-transform duration-300"
+                  />
+                  <div className="absolute top-2.5 right-2.5">
+                    <Badge variant="default" className="text-[10px] bg-primary">
+                      {flyer.hotspots?.length || 0} Hotspots
+                    </Badge>
                   </div>
                 </div>
-
-                <div className="p-4 pt-2 border-t bg-muted/20 flex items-center justify-between text-xs text-primary font-medium">
-                  <span>Open Hotspot Editor</span>
-                  <ChevronRight className="h-4 w-4" />
-                </div>
+                <CardHeader className="p-3.5 pb-2">
+                  <CardTitle className="text-sm font-bold truncate">{flyer.title}</CardTitle>
+                  <CardDescription className="text-xs truncate">{flyer.subtitle || "Weekly Circular"}</CardDescription>
+                </CardHeader>
+                <CardContent className="p-3.5 pt-0 mt-auto flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Edit hotspots & canvas</span>
+                  <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                </CardContent>
               </Card>
             ))}
           </div>
@@ -352,45 +333,39 @@ export function EditorView({
     );
   }
 
-  // --- STEP 3: CANVAS HOTSPOT EDITOR (Flyer is actively opened) ---
+  // --- STEP 3: FULL CANVAS HOTSPOT EDITOR (when a circular is opened) ---
   return (
-    <div className="flex flex-col flex-1 h-[calc(100vh-3.5rem)] overflow-hidden">
-      {/* Studio Header Sub-bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 text-xs">
-        <div className="flex items-center gap-3">
+    <div className="flex h-full flex-col">
+      {/* Studio Top Control Bar */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 gap-2">
+        {/* Breadcrumb Navigation back to stores & flyers */}
+        <div className="flex items-center gap-2 text-xs truncate">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onSelectFlyer("")}
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Store Circulars</span>
+            <span>Circulars</span>
           </Button>
-
           <Separator orientation="vertical" className="h-4" />
-
-          <div className="flex items-center gap-1.5 truncate max-w-sm">
-            <span className="font-semibold text-foreground truncate">{currentFlyer?.title}</span>
-            <span className="text-muted-foreground">({hotspots.length} hotspots)</span>
-          </div>
+          <span className="font-semibold text-foreground truncate">{currentFlyer?.title}</span>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {hotspots.length} hotspots
+          </Badge>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          {imgSize.width > 0 && (
-            <span className="hidden lg:inline text-muted-foreground text-[11px] font-mono">
-              {imgSize.width} × {imgSize.height} px
-            </span>
-          )}
-
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
           <Button
+            variant="outline"
             size="sm"
-            onClick={onSaveToDatabase}
-            disabled={isSaving}
-            className="h-8 gap-1.5 text-xs bg-primary text-primary-foreground font-semibold shadow-xs"
+            onClick={() => setProductDialogOpen(true)}
+            className="h-8 gap-1.5 text-xs"
           >
-            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            <span>Save Hotspots (⌘S)</span>
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add Product</span>
           </Button>
 
           <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
@@ -399,54 +374,57 @@ export function EditorView({
               <span>Preview</span>
             </Link>
           </Button>
+
+          <Button
+            size="sm"
+            onClick={onSaveToDatabase}
+            disabled={isSaving}
+            className="h-8 gap-1.5 text-xs font-semibold"
+          >
+            {isSaving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            <span>Save Hotspots</span>
+          </Button>
         </div>
       </div>
 
-      {/* Main Studio 3-Column Layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Column: Product Catalog & Draw Tool */}
-        <aside className="flex w-72 lg:w-80 shrink-0 flex-col border-r bg-card">
-          <div className="p-3 border-b space-y-2.5">
+      {/* Main Studio Body: 3-column layout */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Left Column: Product Catalog & Mapper */}
+        <aside className="w-72 shrink-0 flex flex-col border-r bg-card">
+          <div className="p-3 border-b space-y-2">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold tracking-tight uppercase text-muted-foreground">
                 1. Product Catalog
               </h2>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setProductDialogOpen(true)}
-                  className="h-6 px-2 text-[10px] gap-1 font-semibold text-primary border-primary/30 hover:bg-primary/10 shadow-2xs"
-                >
-                  <Plus className="h-3 w-3" />
-                  Add Product
-                </Button>
-                <Badge variant="secondary" className="text-[10px] font-semibold">
-                  {filteredProducts.length}
-                </Badge>
-              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {catalogProducts.length} items
+              </span>
             </div>
 
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search products or brands..."
+                placeholder="Search products..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 pl-8 text-xs bg-muted/30"
+                className="pl-8 text-xs h-8"
               />
             </div>
 
-            {/* Category pills */}
-            <div className="flex gap-1 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+            {/* Category Filter Pills */}
+            <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar text-[11px]">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "rounded-md px-2 py-0.5 capitalize transition-colors font-medium shrink-0",
+                    "px-2 py-0.5 rounded-full capitalize shrink-0 font-medium transition-colors text-[10px]",
                     selectedCategory === cat
-                      ? "bg-primary text-primary-foreground font-semibold"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted/50 text-muted-foreground hover:bg-muted"
                   )}
                 >
@@ -466,9 +444,13 @@ export function EditorView({
                     Drawing: {drawProduct.name}
                   </span>
                 </>
+              ) : selectedHotspotId ? (
+                <span className="text-primary text-[11px] font-semibold">
+                  Click a product to assign to selected hotspot:
+                </span>
               ) : (
                 <span className="text-muted-foreground text-[11px]">
-                  Select a product below to draw a hotspot:
+                  Select a product or drag an area on canvas:
                 </span>
               )}
             </div>
@@ -493,17 +475,26 @@ export function EditorView({
             ) : (
               filteredProducts.map((p) => {
                 const isDrawing = drawProduct?.id === p.id;
+                const isAssignedToSelected = selectedHotspot?.productId === p.id;
+
                 return (
                   <div
                     key={p.id}
                     onClick={() => {
-                      setDrawProduct(p);
-                      toast.info(`Ready to map "${p.name}". Click & drag on the flyer canvas.`);
+                      if (selectedHotspotId) {
+                        onUpdateHotspot(selectedHotspotId, { productId: p.id });
+                        toast.success(`Assigned "${p.name}" to selected hotspot.`);
+                      } else {
+                        setDrawProduct(p);
+                        toast.info(`Ready to map "${p.name}". Click & drag an area on the canvas.`);
+                      }
                     }}
                     className={cn(
                       "flex items-center gap-2.5 rounded-lg border p-2 cursor-pointer transition-all text-xs",
                       isDrawing
                         ? "border-primary bg-primary/10 ring-2 ring-primary/20 shadow-xs"
+                        : isAssignedToSelected
+                        ? "border-emerald-500 bg-emerald-500/10 shadow-xs"
                         : "hover:bg-muted/40 bg-card border-border/60"
                     )}
                   >
@@ -585,12 +576,22 @@ export function EditorView({
             >
               <FlyerEditorCanvas
                 imageUrl={imageUrl}
+                imageWidth={imgSize.width}
+                imageHeight={imgSize.height}
                 hotspots={hotspots}
-                selectedHotspotId={selectedHotspotId}
-                onSelectHotspot={onSelectHotspot}
-                onCreateHotspot={onCreateHotspot}
-                onUpdateHotspot={onUpdateHotspot}
-                onDeleteHotspot={onDeleteHotspot}
+                selectedId={selectedHotspotId}
+                onSelect={onSelectHotspot}
+                onCreate={(rect) => {
+                  const assignedProductId = drawProduct?.id || catalogProducts[0]?.id || "prod_pepsi";
+                  onCreateHotspot(rect, assignedProductId);
+                  if (drawProduct) {
+                    toast.success(`Mapped "${drawProduct.name}" to circular.`);
+                  } else {
+                    toast.success("Hotspot mapped. Choose a product from the right panel.");
+                  }
+                }}
+                onUpdate={onUpdateHotspot}
+                onDelete={onDeleteHotspot}
                 drawProduct={drawProduct}
                 catalogProducts={catalogProducts}
                 zoom={zoom}
@@ -603,13 +604,117 @@ export function EditorView({
         <aside className="hidden xl:flex w-72 shrink-0 flex-col border-l bg-card">
           <div className="p-3 border-b flex items-center justify-between">
             <h2 className="text-xs font-bold tracking-tight uppercase text-muted-foreground">
-              3. Mapped Hotspots
+              3. Hotspots Inspector
             </h2>
             <Badge variant="outline" className="text-[10px] font-semibold">
               {hotspots.length} Total
             </Badge>
           </div>
 
+          {/* Selected Hotspot Controls */}
+          {selectedHotspot ? (
+            <div className="p-3 border-b bg-muted/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs">
+                  Hotspot #{selectedHotspotIndex + 1}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onSelectHotspot(null)}
+                  className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3 mr-1" /> Deselect
+                </Button>
+              </div>
+
+              {/* Product Preview Card */}
+              {selectedProduct ? (
+                <div className="flex items-center gap-2.5 bg-background p-2 rounded-md border text-xs">
+                  <div className="h-9 w-9 rounded bg-muted/30 border shrink-0 overflow-hidden flex items-center justify-center">
+                    {selectedProduct.imageUrl ? (
+                      <img
+                        src={resolveImageUrl(selectedProduct.imageUrl)}
+                        alt={selectedProduct.name}
+                        className="h-full w-full object-contain p-0.5"
+                      />
+                    ) : (
+                      <Tag className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold truncate">{selectedProduct.name}</p>
+                    <p className="text-[11px] text-emerald-600 font-bold">
+                      ${Number(selectedProduct.offerPrice || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-background border rounded text-xs text-muted-foreground">
+                  No product assigned yet.
+                </div>
+              )}
+
+              {/* Product Selector Dropdown */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                  <span>Assigned Product</span>
+                  <button
+                    type="button"
+                    onClick={() => setProductDialogOpen(true)}
+                    className="text-primary hover:underline text-[10px]"
+                  >
+                    + New Product
+                  </button>
+                </div>
+                <Select
+                  value={selectedHotspot.productId}
+                  onValueChange={(val) => {
+                    onUpdateHotspot(selectedHotspot.id, { productId: val });
+                    const found = catalogProducts.find((p) => p.id === val);
+                    toast.success(`Assigned "${found?.name || val}" to hotspot.`);
+                  }}
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select product..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-56">
+                    {catalogProducts.map((p) => (
+                      <SelectItem key={p.id} value={p.id} className="text-xs">
+                        {p.name} (${Number(p.offerPrice || 0).toFixed(2)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Coordinates */}
+              <div className="grid grid-cols-2 gap-1.5 text-[10px] text-muted-foreground">
+                <div className="bg-background/80 p-1.5 rounded border">
+                  X: {Math.round(selectedHotspot.x * 100)}% · Y: {Math.round(selectedHotspot.y * 100)}%
+                </div>
+                <div className="bg-background/80 p-1.5 rounded border">
+                  W: {Math.round(selectedHotspot.width * 100)}% · H: {Math.round(selectedHotspot.height * 100)}%
+                </div>
+              </div>
+
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onDeleteHotspot(selectedHotspot.id)}
+                className="w-full h-7 text-xs gap-1.5"
+              >
+                <Trash2 className="h-3 w-3" />
+                <span>Delete Hotspot</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="p-3 bg-muted/30 border-b text-[11px] text-muted-foreground">
+              Click any hotspot rectangle on the canvas to inspect, move, resize, or re-assign.
+            </div>
+          )}
+
+          {/* Hotspots List */}
           <div className="flex-1 overflow-y-auto p-2 space-y-2 text-xs">
             {hotspots.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-xs">
@@ -635,7 +740,7 @@ export function EditorView({
                         #{i + 1} {prod?.name || "Hotspot"}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                        {Math.round(h.x * 100)}%, {Math.round(h.y * 100)}%
+                        {Math.round(h.x * 100)}%, {Math.round(h.y * 100)}% · {Math.round(h.width * 100)}%×{Math.round(h.height * 100)}%
                       </p>
                     </div>
 

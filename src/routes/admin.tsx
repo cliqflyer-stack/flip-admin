@@ -217,12 +217,12 @@ function AdminContent() {
   };
 
   // Hotspot actions
-  const handleCreateHotspot = (rect: HotspotRect) => {
+  const handleCreateHotspot = (rect: HotspotRect, productId?: string) => {
     const newId = `hs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     const defaultProduct = catalogProducts[0];
     const newHotspot: Hotspot = {
       id: newId,
-      productId: defaultProduct?.id || "prod_pepsi",
+      productId: productId || defaultProduct?.id || "prod_pepsi",
       ...rect,
     };
     setHotspots((prev) => [...prev, newHotspot]);
@@ -230,8 +230,8 @@ function AdminContent() {
     toast.success("Hotspot mapped to circular canvas.");
   };
 
-  const handleUpdateHotspot = (id: string, rect: HotspotRect) => {
-    setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, ...rect } : h)));
+  const handleUpdateHotspot = (id: string, update: Partial<Hotspot>) => {
+    setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, ...update } : h)));
   };
 
   const handleDeleteHotspot = (id: string) => {

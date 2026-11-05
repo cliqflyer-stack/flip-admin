@@ -57,9 +57,11 @@ export default function FlyerPreviewCanvas({
     return () => observer.disconnect();
   }, []);
 
-  const fitScale = imageWidth > 0 && containerWidth > 0 ? containerWidth / imageWidth : 0;
-  const stageWidth = Math.round(imageWidth * fitScale);
-  const stageHeight = Math.round(imageHeight * fitScale);
+  const realWidth = image?.naturalWidth || imageWidth || 800;
+  const realHeight = image?.naturalHeight || imageHeight || 1200;
+  const fitScale = realWidth > 0 && containerWidth > 0 ? containerWidth / realWidth : 0;
+  const stageWidth = Math.round(realWidth * fitScale);
+  const stageHeight = Math.round(realHeight * fitScale);
 
   const clampView = (next: ViewState): ViewState => {
     const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next.scale));
