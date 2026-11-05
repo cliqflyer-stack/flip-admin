@@ -5,6 +5,7 @@ import { Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from "reac
 import { PRODUCTS, type Product } from "@/data/products";
 import { clamp01, type Hotspot, type HotspotRect } from "@/lib/flyer-storage";
 import { useHtmlImage } from "@/hooks/use-html-image";
+import type { ApiProduct } from "@/lib/api-client";
 
 interface FlyerEditorCanvasProps {
   imageUrl: string;
@@ -12,8 +13,9 @@ interface FlyerEditorCanvasProps {
   imageHeight: number;
   hotspots: Hotspot[];
   selectedId: string | null;
-  /** When set, the next drag on the flyer creates a hotspot for this product. */
-  drawProduct: Product | null;
+  drawProduct: any | null;
+  catalogProducts?: ApiProduct[];
+  zoom?: number;
   onSelect: (id: string | null) => void;
   onCreate: (rect: HotspotRect) => void;
   onUpdate: (id: string, rect: HotspotRect) => void;
@@ -31,7 +33,8 @@ const STROKE_SELECTED = "#dc2626";
 
 /**
  * Admin-side Konva editor: draw, drag and resize rectangular hotspots
- * over the uploaded flyer. All coordinates are normalized (0–1).
+ * over the flyer. All coordinates are normalized (0–1).
+ * Smoothly scales with zoom level while preserving precision normalized coordinates.
  */
 export default function FlyerEditorCanvas({
   imageUrl,
@@ -40,6 +43,8 @@ export default function FlyerEditorCanvas({
   hotspots,
   selectedId,
   drawProduct,
+  catalogProducts = [],
+  zoom = 1.0,
   onSelect,
   onCreate,
   onUpdate,
@@ -48,18 +53,24 @@ export default function FlyerEditorCanvas({
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const drawingRef = useRef<{ startX: number; startY: number } | null>(null);
-  // Draft rect mirrored in a ref: touch events fire faster than React state
-  // updates, so the up-handler must not read the possibly stale `draft` state.
   const draftRef = useRef<StageRect | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [draft, setDraft] = useState<StageRect | null>(null);
+
   const updateDraft = (rect: StageRect | null) => {
     draftRef.current = rect;
     setDraft(rect);
   };
+
   const image = useHtmlImage(imageUrl);
 
-  const productsById = useMemo(() => new Map(PRODUCTS.map((p) => [p.id, p])), []);
+  // Combine live API catalog with fallback products
+  const productsById = useMemo(() => {
+    const map = new Map<string, any>();
+    PRODUCTS.forEach((p) => map.set(p.id, p));
+    catalogProducts.forEach((p) => map.set(p.id, p));
+    return map;
+  }, [catalogProducts]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -72,11 +83,13 @@ export default function FlyerEditorCanvas({
     return () => observer.disconnect();
   }, []);
 
-  const scale = imageWidth > 0 && containerWidth > 0 ? containerWidth / imageWidth : 0;
-  const stageWidth = Math.round(imageWidth * scale);
-  const stageHeight = Math.round(imageHeight * scale);
+  // Base scale fits container width at 100% zoom
+  const baseScale = imageWidth > 0 && containerWidth > 0 ? containerWidth / imageWidth : 1;
+  const effectiveScale = baseScale * zoom;
+  const stageWidth = Math.round((imageWidth || 800) * effectiveScale);
+  const stageHeight = Math.round((imageHeight || 1200) * effectiveScale);
 
-  // Keep the transformer attached to the selected hotspot group.
+  // Keep transformer attached to selected node
   useEffect(() => {
     const transformer = trRef.current;
     const stage = stageRef.current;
@@ -84,12 +97,12 @@ export default function FlyerEditorCanvas({
     const node = selectedId ? stage.findOne(`#${selectedId}`) : null;
     transformer.nodes(node ? [node] : []);
     transformer.getLayer()?.batchDraw();
-  }, [selectedId, hotspots, scale, containerWidth]);
+  }, [selectedId, hotspots, effectiveScale, containerWidth]);
 
   type StageEvent = Konva.KonvaEventObject<MouseEvent | TouchEvent>;
+
   const handleMouseDown = (event: StageEvent) => {
-    if (!drawProduct || scale === 0) return;
-    // The flyer image is non-listening, so a click on the surface targets the stage.
+    if (!drawProduct || effectiveScale === 0) return;
     if (event.target.getStage() !== event.target) return;
     const position = stageRef.current?.getPointerPosition();
     if (!position) return;
@@ -115,22 +128,28 @@ export default function FlyerEditorCanvas({
     drawingRef.current = null;
     const rect = draftRef.current;
     updateDraft(null);
-    if (!rect || scale === 0) return;
+    if (!rect || effectiveScale === 0) return;
+
     const normalized: HotspotRect = {
       x: clamp01(rect.x / stageWidth),
       y: clamp01(rect.y / stageHeight),
       width: clamp01(rect.width / stageWidth),
       height: clamp01(rect.height / stageHeight),
     };
-    if (normalized.width < 0.02 || normalized.height < 0.02) return;
+
+    if (normalized.width < 0.015 || normalized.height < 0.015) return;
     onCreate(normalized);
   };
 
   return (
     <div
       ref={containerRef}
-      className="w-full select-none"
-      style={{ cursor: drawProduct ? "crosshair" : "default" }}
+      className="relative flex justify-center select-none"
+      style={{
+        cursor: drawProduct ? "crosshair" : "default",
+        width: stageWidth > 0 ? `${stageWidth}px` : "100%",
+        minHeight: `${stageHeight}px`,
+      }}
     >
       {image && stageWidth > 0 && (
         <Stage
@@ -143,6 +162,7 @@ export default function FlyerEditorCanvas({
           onTouchStart={handleMouseDown}
           onTouchMove={handleMouseMove}
           onTouchEnd={handleMouseUp}
+          className="shadow-xl rounded-md overflow-hidden bg-white"
         >
           <Layer>
             <KonvaImage
@@ -151,8 +171,9 @@ export default function FlyerEditorCanvas({
               height={stageHeight}
               listening={false}
             />
+
+            {/* Hotspot bounding rectangles */}
             {hotspots.map((hotspot) => {
-              const product = productsById.get(hotspot.productId);
               const selected = hotspot.id === selectedId;
               return (
                 <Rect
@@ -166,7 +187,7 @@ export default function FlyerEditorCanvas({
                   draggable={!drawProduct}
                   stroke={selected ? STROKE_SELECTED : STROKE_IDLE}
                   strokeWidth={selected ? 3 : 2}
-                  fill={selected ? "rgba(220,38,38,0.12)" : "rgba(37,99,235,0.08)"}
+                  fill={selected ? "rgba(220,38,38,0.14)" : "rgba(37,99,235,0.08)"}
                   dash={[6, 4]}
                   onClick={() => onSelect(hotspot.id)}
                   onTap={() => onSelect(hotspot.id)}
@@ -195,38 +216,45 @@ export default function FlyerEditorCanvas({
                 />
               );
             })}
+
+            {/* Hotspot Product Labels */}
             {hotspots.map((hotspot) => {
               const product = productsById.get(hotspot.productId);
               if (!product) return null;
               const labelY = Math.max(2, hotspot.y * stageHeight - 20);
+              const isSelected = hotspot.id === selectedId;
               return (
                 <Text
                   key={`label-${hotspot.id}`}
                   x={hotspot.x * stageWidth}
                   y={labelY}
-                  text={product.name}
-                  fontSize={12}
+                  text={`${product.name} ($${Number(product.offerPrice || 0).toFixed(2)})`}
+                  fontSize={Math.max(10, Math.min(13, Math.round(11 * zoom)))}
                   fontStyle="600"
-                  fill={hotspot.id === selectedId ? STROKE_SELECTED : STROKE_IDLE}
-                  shadowColor="rgba(255,255,255,0.9)"
+                  fill={isSelected ? STROKE_SELECTED : STROKE_IDLE}
+                  shadowColor="rgba(255,255,255,0.95)"
                   shadowBlur={4}
                   listening={false}
                 />
               );
             })}
+
+            {/* Current Drawing Draft */}
             {draft && (
               <Rect
                 x={draft.x}
                 y={draft.y}
                 width={draft.width}
                 height={draft.height}
-                stroke="#ffffff"
+                stroke="#dc2626"
                 strokeWidth={2}
                 dash={[8, 5]}
-                fill="rgba(255,255,255,0.15)"
+                fill="rgba(220,38,38,0.18)"
                 listening={false}
               />
             )}
+
+            {/* Konva Transformer */}
             <Transformer
               ref={trRef}
               rotateEnabled={false}
@@ -237,7 +265,7 @@ export default function FlyerEditorCanvas({
               anchorFill="#ffffff"
               anchorSize={9}
               boundBoxFunc={(oldBox, newBox) =>
-                newBox.width < 20 || newBox.height < 20 ? oldBox : newBox
+                newBox.width < 15 || newBox.height < 15 ? oldBox : newBox
               }
             />
           </Layer>

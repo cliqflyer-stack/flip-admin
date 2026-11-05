@@ -1,122 +1,133 @@
-import { createFileRoute, ClientOnly, Link } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { toast, Toaster } from "sonner";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
-  ArrowLeft,
-  CheckCircle2,
   Database,
-  ExternalLink,
-  Eye,
   ImagePlus,
+  Layers,
   Loader2,
   Plus,
-  Save,
-  Search,
   Sparkles,
-  Store,
-  Tag,
-  Trash2,
   Upload,
-  X,
 } from "lucide-react";
 
 import sampleFlyerUrl from "@/assets/sample-flyer.jpg";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
-  API_BASE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  createFlyer,
+  deleteFlyer,
   fetchFlyers,
+  fetchMerchants,
   fetchProducts,
   fetchStats,
+  resolveImageUrl,
   saveHotspotsBatch,
   uploadImage,
-  createFlyer,
-  createProduct,
-  resolveImageUrl,
   type ApiFlyer,
   type ApiProduct,
   type DashboardStats,
+  type Merchant,
 } from "@/lib/api-client";
 import type { Hotspot, HotspotRect } from "@/lib/flyer-storage";
-import { cn } from "@/lib/utils";
-
-const FlyerEditorCanvas = lazy(() => import("@/components/flyer/FlyerEditorCanvas"));
+import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { LoginPage } from "@/components/admin/LoginPage";
+import { AdminSidebar, type AdminView } from "@/components/admin/AdminSidebar";
+import { AdminHeader } from "@/components/admin/AdminHeader";
+import { DashboardView } from "@/components/admin/DashboardView";
+import { EditorView } from "@/components/admin/EditorView";
+import { TemplatesView } from "@/components/admin/TemplatesView";
+import { ProductsView } from "@/components/admin/ProductsView";
+import { SettingsView } from "@/components/admin/SettingsView";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Flip Admin — Interactive Flyer & Hotspot Manager" },
+      { title: "Flip Admin — Interactive Flyer & Studio Management" },
       {
         name: "description",
         content:
-          "Manage store flyers, draw interactive deal hotspots, and publish directly to Neon Postgres for the Flip mobile app.",
+          "Standard shadcn admin portal for managing digital circulars, interactive hotspots, and catalog products.",
       },
     ],
   }),
-  component: AdminPage,
+  component: AdminPageWrapper,
 });
 
-function AdminPage() {
+function AdminPageWrapper() {
+  return (
+    <AuthProvider>
+      <AdminContent />
+    </AuthProvider>
+  );
+}
+
+function AdminContent() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  const [currentView, setCurrentView] = useState<AdminView>("dashboard");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [flyersList, setFlyersList] = useState<ApiFlyer[]>([]);
   const [selectedFlyerId, setSelectedFlyerId] = useState<string>("");
   const [catalogProducts, setCatalogProducts] = useState<ApiProduct[]>([]);
+  const [merchantsList, setMerchantsList] = useState<Merchant[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [dbConnected, setDbConnected] = useState(false);
 
   // Editor states
   const [imageUrl, setImageUrl] = useState<string>(sampleFlyerUrl);
-  const [fileName, setFileName] = useState("flyer.jpg");
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drawProduct, setDrawProduct] = useState<ApiProduct | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [loaded, setLoaded] = useState(false);
+  const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
 
-  // Modal for new flyer upload
+  // Upload modal states
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [newFlyerTitle, setNewFlyerTitle] = useState("");
   const [newFlyerStore, setNewFlyerStore] = useState("merch_drug_mart");
   const [uploadingFlyer, setUploadingFlyer] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load initial data from Neon API
-  useEffect(() => {
-    let cancelled = false;
+  // Load initial remote data from Neon API
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [statsData, flyersData, productsData, merchantsData] = await Promise.all([
+        fetchStats().catch(() => null),
+        fetchFlyers().catch(() => []),
+        fetchProducts().catch(() => []),
+        fetchMerchants().catch(() => []),
+      ]);
 
-    async function loadData() {
-      try {
-        const [statsData, flyersData, productsData] = await Promise.all([
-          fetchStats().catch(() => null),
-          fetchFlyers().catch(() => []),
-          fetchProducts().catch(() => []),
-        ]);
+      if (statsData) setStats(statsData);
+      if (productsData.length > 0) setCatalogProducts(productsData);
+      if (merchantsData.length > 0) setMerchantsList(merchantsData);
 
-        if (cancelled) return;
-
-        if (statsData) {
-          setStats(statsData);
-          setDbConnected(true);
-        }
-
-        if (productsData.length > 0) {
-          setCatalogProducts(productsData);
-        }
-
-        if (flyersData.length > 0) {
-          setFlyersList(flyersData);
-          const firstFlyer = flyersData[0];
-          setSelectedFlyerId(firstFlyer.id);
-          setImageUrl(resolveImageUrl(firstFlyer.flyerImageUrl));
-          setFileName(firstFlyer.title);
-
-          if (firstFlyer.hotspots && firstFlyer.hotspots.length > 0) {
+      if (flyersData.length > 0) {
+        setFlyersList(flyersData);
+        if (!selectedFlyerId) {
+          const first = flyersData[0];
+          setSelectedFlyerId(first.id);
+          setImageUrl(resolveImageUrl(first.flyerImageUrl));
+          if (first.hotspots) {
             setHotspots(
-              firstFlyer.hotspots.map((h) => ({
+              first.hotspots.map((h) => ({
                 id: h.id,
                 productId: h.productId,
                 x: h.x,
@@ -127,29 +138,36 @@ function AdminPage() {
             );
           }
         }
-      } catch (err) {
-        console.error("Failed to load initial data:", err);
-      } finally {
-        if (!cancelled) setLoaded(true);
       }
+    } catch (e) {
+      console.warn("Could not load initial admin data", e);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    loadData();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
 
-  // When selected flyer changes, load its image and hotspots
-  const handleSelectFlyer = (flyerId: string) => {
-    const flyer = flyersList.find((f) => f.id === flyerId);
+  // Read natural image dimensions
+  useEffect(() => {
+    if (!imageUrl) return;
+    const img = new window.Image();
+    img.onload = () => setImgSize({ width: img.naturalWidth, height: img.naturalHeight });
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  // Select flyer
+  const handleSelectFlyer = (id: string) => {
+    const flyer = flyersList.find((f) => f.id === id);
     if (!flyer) return;
 
-    setSelectedFlyerId(flyerId);
+    setSelectedFlyerId(id);
     setImageUrl(resolveImageUrl(flyer.flyerImageUrl));
-    setFileName(flyer.title);
-    setSelectedId(null);
-    setDrawProduct(null);
+    setSelectedHotspotId(null);
 
     if (flyer.hotspots && flyer.hotspots.length > 0) {
       setHotspots(
@@ -168,38 +186,31 @@ function AdminPage() {
     toast.info(`Loaded flyer: ${flyer.title}`);
   };
 
-  // Read natural image dimensions
-  useEffect(() => {
-    if (!imageUrl) return;
-    const img = new window.Image();
-    img.onload = () => setImgSize({ width: img.naturalWidth, height: img.naturalHeight });
-    img.src = imageUrl;
-  }, [imageUrl]);
-
-  // Create hotspot
-  const handleCreate = (rect: HotspotRect) => {
-    if (!drawProduct) return;
+  // Hotspot actions
+  const handleCreateHotspot = (rect: HotspotRect) => {
     const newId = `hs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-    const hotspot: Hotspot = { id: newId, productId: drawProduct.id, ...rect };
-    setHotspots((prev) => [...prev, hotspot]);
-    setSelectedId(hotspot.id);
-    toast.success(`Mapped "${drawProduct.name}" to flyer area.`);
-    setDrawProduct(null);
+    const defaultProduct = catalogProducts[0];
+    const newHotspot: Hotspot = {
+      id: newId,
+      productId: defaultProduct?.id || "prod_pepsi",
+      ...rect,
+    };
+    setHotspots((prev) => [...prev, newHotspot]);
+    setSelectedHotspotId(newHotspot.id);
+    toast.success("Hotspot mapped to flyer canvas.");
   };
 
-  // Update hotspot coordinates
-  const handleUpdate = (id: string, rect: HotspotRect) => {
+  const handleUpdateHotspot = (id: string, rect: HotspotRect) => {
     setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, ...rect } : h)));
   };
 
-  // Delete hotspot
-  const handleDelete = (id: string) => {
+  const handleDeleteHotspot = (id: string) => {
     setHotspots((prev) => prev.filter((h) => h.id !== id));
-    if (selectedId === id) setSelectedId(null);
+    if (selectedHotspotId === id) setSelectedHotspotId(null);
     toast.info("Hotspot removed.");
   };
 
-  // Save Hotspots to Neon Postgres Database
+  // Save Hotspots to Neon DB
   const handleSaveToDatabase = async () => {
     if (!selectedFlyerId) {
       toast.error("Please select a flyer to save hotspots for.");
@@ -220,20 +231,35 @@ function AdminPage() {
       const res = await saveHotspotsBatch(selectedFlyerId, payload);
       toast.success(`Saved ${res.count} hotspots directly to Neon Postgres!`);
 
-      // Refresh flyers list
+      // Refresh list
       const refreshed = await fetchFlyers();
       setFlyersList(refreshed);
       const updatedStats = await fetchStats();
       setStats(updatedStats);
     } catch (err: any) {
-      console.error(err);
       toast.error(`Save failed: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Upload flyer file
+  // Delete Flyer
+  const handleDeleteFlyer = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this flyer?")) return;
+    try {
+      await deleteFlyer(id);
+      toast.success("Flyer removed.");
+      const refreshed = await fetchFlyers();
+      setFlyersList(refreshed);
+      if (selectedFlyerId === id && refreshed.length > 0) {
+        handleSelectFlyer(refreshed[0].id);
+      }
+    } catch (e: any) {
+      toast.error(`Could not delete flyer: ${e.message}`);
+    }
+  };
+
+  // Upload flyer handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -242,7 +268,7 @@ function AdminPage() {
     try {
       const uploadRes = await uploadImage(file);
       const created = await createFlyer({
-        merchantId: newFlyerStore || "merch_drug_mart",
+        merchantId: newFlyerStore || (merchantsList[0]?.id ?? "merch_drug_mart"),
         title: newFlyerTitle || file.name.replace(/\.[^/.]+$/, ""),
         subtitle: "Weekly Deals · Live Flyer",
         badgeText: "NEW",
@@ -257,10 +283,11 @@ function AdminPage() {
       setUploadModalOpen(false);
       setNewFlyerTitle("");
 
-      // Refresh and select
+      // Refresh and switch to editor
       const refreshed = await fetchFlyers();
       setFlyersList(refreshed);
       handleSelectFlyer(created.id);
+      setCurrentView("editor");
     } catch (err: any) {
       toast.error(`Upload failed: ${err.message}`);
     } finally {
@@ -268,414 +295,189 @@ function AdminPage() {
     }
   };
 
-  const selectedHotspot = hotspots.find((h) => h.id === selectedId) ?? null;
-  const selectedProduct = selectedHotspot
-    ? catalogProducts.find((p) => p.id === selectedHotspot.productId)
-    : null;
+  const handleFlyerCreatedFromTemplate = (created: ApiFlyer) => {
+    setFlyersList((prev) => [created, ...prev]);
+    handleSelectFlyer(created.id);
+    setCurrentView("editor");
+  };
 
-  const filteredProducts = catalogProducts.filter((p) => {
-    const term = search.toLowerCase();
+  // 1. Loading auth state
+  if (authLoading) {
     return (
-      p.name.toLowerCase().includes(term) ||
-      p.brand.toLowerCase().includes(term) ||
-      p.category.toLowerCase().includes(term)
-    );
-  });
-
-  return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      <Toaster position="top-right" richColors />
-
-      {/* Top Navigation Bar */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b px-4 bg-card/60 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-2 font-bold text-lg text-primary">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white text-sm font-extrabold">
-              F
-            </span>
-            flip Admin
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-sm font-medium">Interactive Flyer Canvas</span>
-
-          {/* Database connection badge */}
-          <div className="ml-4 flex items-center gap-1.5 rounded-full border bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-            <Database className="h-3 w-3 text-emerald-600" />
-            <span>Neon DB Connected (AWS us-east-1)</span>
-          </div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md animate-pulse">
+          <Sparkles className="h-6 w-6" />
         </div>
-
-        <div className="flex items-center gap-3">
-          {/* Stats summary pill */}
-          {stats && (
-            <div className="hidden items-center gap-3 text-xs text-muted-foreground md:flex">
-              <span>
-                <strong>{stats.flyers}</strong> flyers
-              </span>
-              <span>•</span>
-              <span>
-                <strong>{stats.products}</strong> products
-              </span>
-              <span>•</span>
-              <span>
-                <strong>{hotspots.length}</strong> hotspots on page
-              </span>
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setUploadModalOpen(true)}
-            className="gap-1.5"
-          >
-            <Upload className="h-4 w-4" />
-            Upload Flyer
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={handleSaveToDatabase}
-            disabled={isSaving}
-            className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Save to Neon DB
-          </Button>
-
-          <Button asChild variant="ghost" size="sm" className="gap-1.5">
-            <Link to="/preview">
-              <Eye className="h-4 w-4" />
-              Shopper Preview
-            </Link>
-          </Button>
-        </div>
-      </header>
-
-      {/* Sub-header: Flyer Selector Bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b bg-muted/40 px-4 text-sm">
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Active Flyers:
-          </span>
-          {flyersList.map((flyer) => (
-            <button
-              key={flyer.id}
-              onClick={() => handleSelectFlyer(flyer.id)}
-              className={cn(
-                "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                selectedFlyerId === flyer.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-background text-foreground hover:bg-accent border"
-              )}
-            >
-              {flyer.title} ({flyer.hotspots?.length || 0})
-            </button>
-          ))}
-        </div>
-
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {imgSize.width > 0 && (
-            <span>
-              Image Resolution: {imgSize.width} × {imgSize.height} px
-            </span>
-          )}
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span>Verifying administrator session...</span>
         </div>
       </div>
+    );
+  }
 
-      {/* Main Workspace (3 Columns: Left = Catalog Picker, Center = Konva Canvas, Right = Hotspot Inspector) */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Column: Product Catalog & Draw Tool */}
-        <aside className="flex w-80 shrink-0 flex-col border-r bg-card">
-          <div className="p-3 border-b space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">1. Product Catalog</h2>
-              <Badge variant="secondary" className="text-xs">
-                {filteredProducts.length} items
-              </Badge>
+  // 2. Unauthenticated: Render standard shadcn Login Page
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  const currentFlyer = flyersList.find((f) => f.id === selectedFlyerId);
+
+  // 3. Authenticated: Render standard shadcn Admin Portal
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <AdminSidebar
+        currentView={currentView}
+        onSelectView={setCurrentView}
+        flyersCount={flyersList.length}
+        productsCount={catalogProducts.length}
+      />
+
+      <SidebarInset className="flex flex-col flex-1 min-w-0 bg-background overflow-hidden">
+        <AdminHeader
+          currentView={currentView}
+          onSelectView={setCurrentView}
+          onOpenUpload={() => setUploadModalOpen(true)}
+          selectedFlyerTitle={currentFlyer?.title}
+        />
+
+        {/* View Switcher */}
+        <div className="flex-1 overflow-auto">
+          {currentView === "dashboard" && (
+            <DashboardView
+              stats={stats}
+              flyers={flyersList}
+              loading={loading}
+              onSelectFlyerToEdit={(id) => {
+                handleSelectFlyer(id);
+                setCurrentView("editor");
+              }}
+              onOpenUpload={() => setUploadModalOpen(true)}
+              onSelectView={setCurrentView}
+              onDeleteFlyer={handleDeleteFlyer}
+            />
+          )}
+
+          {currentView === "editor" && (
+            <EditorView
+              flyers={flyersList}
+              selectedFlyerId={selectedFlyerId}
+              onSelectFlyer={handleSelectFlyer}
+              catalogProducts={catalogProducts}
+              hotspots={hotspots}
+              selectedHotspotId={selectedHotspotId}
+              onSelectHotspot={setSelectedHotspotId}
+              onCreateHotspot={handleCreateHotspot}
+              onUpdateHotspot={handleUpdateHotspot}
+              onDeleteHotspot={handleDeleteHotspot}
+              onSaveToDatabase={handleSaveToDatabase}
+              isSaving={isSaving}
+              onOpenUpload={() => setUploadModalOpen(true)}
+              imageUrl={imageUrl}
+              imgSize={imgSize}
+            />
+          )}
+
+          {currentView === "templates" && (
+            <TemplatesView
+              merchants={merchantsList}
+              catalogProducts={catalogProducts}
+              onFlyerCreated={handleFlyerCreatedFromTemplate}
+              currentFlyer={currentFlyer}
+            />
+          )}
+
+          {currentView === "products" && (
+            <ProductsView
+              products={catalogProducts}
+              merchants={merchantsList}
+              onProductCreated={(p) => setCatalogProducts((prev) => [p, ...prev])}
+              loading={loading}
+            />
+          )}
+
+          {currentView === "settings" && <SettingsView />}
+        </div>
+      </SidebarInset>
+
+      {/* Upload Flyer Modal Dialog */}
+      <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <Upload className="h-5 w-5 text-primary" />
+              <DialogTitle className="text-lg font-bold">Upload Flyer Image</DialogTitle>
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <DialogDescription className="text-xs">
+              Upload a digital circular (JPG, PNG, or WebP) to publish to Neon Postgres and map hotspots.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="space-y-1.5">
+              <Label htmlFor="upload-title" className="text-xs font-semibold">
+                Flyer Title
+              </Label>
               <Input
-                placeholder="Search products..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-8 pl-8 text-xs"
+                id="upload-title"
+                placeholder="e.g. My Weekly Deals Oct 20–26"
+                value={newFlyerTitle}
+                onChange={(e) => setNewFlyerTitle(e.target.value)}
+                className="text-xs"
               />
             </div>
-          </div>
 
-          {/* Active drawing hint */}
-          {drawProduct ? (
-            <div className="bg-amber-50 border-b border-amber-200 p-3 text-xs text-amber-900">
-              <div className="flex items-center justify-between font-semibold">
-                <span>Draw mode active</span>
-                <button
-                  onClick={() => setDrawProduct(null)}
-                  className="text-amber-700 hover:text-amber-900"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <p className="mt-1">
-                Drag a rectangle over <strong>{drawProduct.name}</strong> on the flyer canvas to
-                map it.
-              </p>
-            </div>
-          ) : (
-            <div className="p-2.5 bg-muted/30 border-b text-xs text-muted-foreground">
-              Select a product below, then click & drag over its position on the flyer.
-            </div>
-          )}
-
-          {/* Products List */}
-          <div className="flex-1 overflow-y-auto divide-y">
-            {filteredProducts.map((product) => {
-              const isSelectedForDraw = drawProduct?.id === product.id;
-              const isMapped = hotspots.some((h) => h.productId === product.id);
-
-              return (
-                <div
-                  key={product.id}
-                  onClick={() => setDrawProduct(isSelectedForDraw ? null : product)}
-                  className={cn(
-                    "flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-muted/50",
-                    isSelectedForDraw && "bg-primary/10 border-l-4 border-primary",
-                    isMapped && "opacity-90"
-                  )}
-                >
-                  <img
-                    src={resolveImageUrl(product.imageUrl)}
-                    alt={product.name}
-                    className="h-10 w-10 shrink-0 rounded object-cover border bg-white"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="truncate text-xs font-semibold">{product.name}</p>
-                      {isMapped && (
-                        <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
-                          <CheckCircle2 className="h-3 w-3" /> Mapped
-                        </span>
-                      )}
-                    </div>
-                    <p className="truncate text-[11px] text-muted-foreground">{product.brand}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-xs font-bold text-emerald-700">
-                        ${Number(product.offerPrice).toFixed(2)}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground line-through">
-                        ${Number(product.regularPrice).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-
-        {/* Center Column: Konva Canvas Interactive Editor */}
-        <main className="flex-1 overflow-auto bg-muted/20 p-4 flex flex-col items-center justify-center">
-          <div className="w-full max-w-4xl rounded-lg border bg-card shadow-sm overflow-hidden">
-            <div className="border-b bg-muted/40 px-3 py-1.5 flex items-center justify-between text-xs text-muted-foreground">
-              <span>Interactive Konva Canvas — Normalized Coordinates (0..1)</span>
-              <span>{hotspots.length} hotspots mapped</span>
+            <div className="space-y-1.5">
+              <Label htmlFor="upload-store" className="text-xs font-semibold">
+                Store / Merchant
+              </Label>
+              <Select value={newFlyerStore} onValueChange={setNewFlyerStore}>
+                <SelectTrigger id="upload-store" className="text-xs">
+                  <SelectValue placeholder="Select a merchant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {merchantsList.map((m) => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="relative min-h-[500px] flex items-center justify-center">
-              <ClientOnly>
-                <Suspense
-                  fallback={
-                    <div className="flex items-center justify-center p-12">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  }
-                >
-                  <FlyerEditorCanvas
-                    imageUrl={imageUrl}
-                    imageWidth={imgSize.width}
-                    imageHeight={imgSize.height}
-                    hotspots={hotspots}
-                    selectedId={selectedId}
-                    drawProduct={drawProduct as any}
-                    onSelect={setSelectedId}
-                    onCreate={handleCreate}
-                    onUpdate={handleUpdate}
-                  />
-                </Suspense>
-              </ClientOnly>
-            </div>
-          </div>
-        </main>
-
-        {/* Right Column: Hotspot Inspector & Details */}
-        <aside className="flex w-80 shrink-0 flex-col border-l bg-card">
-          <div className="p-3 border-b">
-            <h2 className="text-sm font-semibold">2. Mapped Hotspots</h2>
-            <p className="text-xs text-muted-foreground">
-              {hotspots.length} product hotspots on this flyer
-            </p>
-          </div>
-
-          {selectedHotspot && selectedProduct ? (
-            <div className="p-4 border-b space-y-3 bg-muted/20">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Selected Hotspot
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 text-destructive hover:bg-destructive/10"
-                  onClick={() => handleDelete(selectedHotspot.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <img
-                  src={resolveImageUrl(selectedProduct.imageUrl)}
-                  alt={selectedProduct.name}
-                  className="h-12 w-12 rounded border bg-white object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-xs leading-tight">{selectedProduct.name}</h3>
-                  <p className="text-[11px] text-muted-foreground">{selectedProduct.brand}</p>
-                  <p className="text-xs font-bold text-emerald-700 mt-0.5">
-                    ${Number(selectedProduct.offerPrice).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Coordinates inspection */}
-              <div className="rounded border bg-background p-2.5 text-[11px] space-y-1 font-mono">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">X (norm):</span>
-                  <span>{selectedHotspot.x.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Y (norm):</span>
-                  <span>{selectedHotspot.y.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Width:</span>
-                  <span>{selectedHotspot.width.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Height:</span>
-                  <span>{selectedHotspot.height.toFixed(4)}</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 border-b text-xs text-muted-foreground text-center">
-              Click any rectangle on the canvas to inspect coordinates and edit details.
-            </div>
-          )}
-
-          {/* List of all hotspots on this flyer */}
-          <div className="flex-1 overflow-y-auto divide-y">
-            {hotspots.map((hs, index) => {
-              const prod = catalogProducts.find((p) => p.id === hs.productId);
-              const isSelected = hs.id === selectedId;
-
-              return (
-                <div
-                  key={hs.id}
-                  onClick={() => setSelectedId(hs.id)}
-                  className={cn(
-                    "flex items-center justify-between p-3 text-xs cursor-pointer hover:bg-muted/40 transition-colors",
-                    isSelected && "bg-primary/10 border-l-4 border-primary font-semibold"
-                  )}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
-                      {index + 1}
-                    </span>
-                    <span className="truncate">{prod ? prod.name : hs.productId}</span>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(hs.id);
-                    }}
-                    className="text-muted-foreground hover:text-destructive p-1"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-      </div>
-
-      {/* Upload Flyer Modal */}
-      {uploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-card p-6 shadow-xl border">
-            <h3 className="text-lg font-bold">Upload New Flyer</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Upload a flyer image (JPG, PNG) to publish directly to Neon Postgres.
-            </p>
-
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="text-xs font-semibold">Flyer Title</label>
-                <Input
-                  placeholder="e.g. Weekly Savings Circular"
-                  value={newFlyerTitle}
-                  onChange={(e) => setNewFlyerTitle(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold">Select Merchant</label>
-                <select
-                  value={newFlyerStore}
-                  onChange={(e) => setNewFlyerStore(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="merch_drug_mart">MY DRUG MART</option>
-                  <option value="merch_longos">Longo's</option>
-                  <option value="merch_hardware">Home Hardware</option>
-                  <option value="merch_nofrills">No Frills</option>
-                  <option value="merch_walmart">Walmart</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold">Flyer Image File</label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Flyer Image File</Label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-6 cursor-pointer hover:bg-muted/40 transition-colors"
+              >
+                <ImagePlus className="h-8 w-8 text-muted-foreground mb-2" />
+                <span className="text-xs font-medium text-foreground">Click to browse or drop flyer image</span>
+                <span className="text-[11px] text-muted-foreground mt-0.5">JPG, PNG, WebP up to 10MB</span>
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  ref={fileInputRef}
+                  className="hidden"
                   onChange={handleFileUpload}
-                  className="mt-1 w-full text-xs"
                   disabled={uploadingFlyer}
                 />
               </div>
             </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setUploadModalOpen(false)}
-                disabled={uploadingFlyer}
-              >
-                Cancel
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
-    </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setUploadModalOpen(false)}
+              disabled={uploadingFlyer}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </SidebarProvider>
   );
 }
