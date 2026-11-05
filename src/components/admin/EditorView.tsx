@@ -541,13 +541,18 @@ export function EditorView({
                 return (
                   <div
                     key={p.id}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("application/json", JSON.stringify(p));
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
                     onClick={() => {
                       if (selectedHotspotId) {
                         onUpdateHotspot(selectedHotspotId, { productId: p.id });
                         toast.success(`Assigned "${p.name}" to selected hotspot.`);
                       } else {
                         setDrawProduct(p);
-                        toast.info(`Ready to map "${p.name}". Click & drag an area on the canvas.`);
+                        toast.info(`Ready to map "${p.name}". Click & drag an area on the canvas or drag & drop item.`);
                       }
                     }}
                     className={cn(
@@ -642,11 +647,13 @@ export function EditorView({
                 hotspots={hotspots}
                 selectedId={selectedHotspotId}
                 onSelect={onSelectHotspot}
-                onCreate={(rect) => {
-                  const assignedProductId = drawProduct?.id || catalogProducts[0]?.id || "prod_pepsi";
+                onCreate={(rect, droppedProductId) => {
+                  const assignedProductId =
+                    droppedProductId || drawProduct?.id || catalogProducts[0]?.id || "prod_pepsi";
                   onCreateHotspot(rect, assignedProductId);
-                  if (drawProduct) {
-                    toast.success(`Mapped "${drawProduct.name}" to circular.`);
+                  const found = catalogProducts.find((p) => p.id === assignedProductId);
+                  if (found) {
+                    toast.success(`Mapped "${found.name}" to circular.`);
                   } else {
                     toast.success("Hotspot mapped. Choose a product from the right panel.");
                   }
@@ -769,7 +776,7 @@ export function EditorView({
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder={assignedProduct ? Number(assignedProduct.offerPrice || 0).toFixed(2) : "0.00"}
+                      placeholder={selectedProduct ? Number(selectedProduct.offerPrice || 0).toFixed(2) : "0.00"}
                       value={selectedHotspot.priceOverride ?? ""}
                       onChange={(e) => {
                         const val = e.target.value === "" ? null : e.target.value;
@@ -779,7 +786,7 @@ export function EditorView({
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    Overrides base price ({assignedProduct ? `$${Number(assignedProduct.offerPrice || 0).toFixed(2)}` : "$0.00"}) for this circular.
+                    Overrides base price ({selectedProduct ? `$${Number(selectedProduct.offerPrice || 0).toFixed(2)}` : "$0.00"}) for this circular.
                   </p>
                 </div>
 
@@ -787,7 +794,7 @@ export function EditorView({
                   <label className="text-[10px] text-muted-foreground font-medium">Flyer Title / Badge Override</label>
                   <Input
                     type="text"
-                    placeholder={assignedProduct?.name || "Custom circular badge / headline"}
+                    placeholder={selectedProduct?.name || "Custom circular badge / headline"}
                     value={selectedHotspot.titleOverride ?? ""}
                     onChange={(e) => {
                       const val = e.target.value === "" ? null : e.target.value;

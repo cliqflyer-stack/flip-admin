@@ -17,7 +17,7 @@ export interface FlyerEditorCanvasProps {
   catalogProducts?: ApiProduct[];
   zoom?: number;
   onSelect: (id: string | null) => void;
-  onCreate: (rect: HotspotRect) => void;
+  onCreate: (rect: HotspotRect, productId?: string) => void;
   onUpdate: (id: string, update: Partial<Hotspot>) => void;
   onDelete?: (id: string) => void;
 }
@@ -168,6 +168,40 @@ export default function FlyerEditorCanvas({
     onCreate(normalized);
   };
 
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const data = e.dataTransfer.getData("application/json");
+    if (!data) return;
+    try {
+      const droppedProduct = JSON.parse(data);
+      if (!droppedProduct?.id) return;
+
+      const container = containerRef.current;
+      if (!container || stageWidth === 0 || stageHeight === 0) return;
+      const rect = container.getBoundingClientRect();
+      const clientX = e.clientX - rect.left;
+      const clientY = e.clientY - rect.top;
+
+      // Default hotspot size: 20% width, 14% height centered on drop point
+      const defaultW = 0.2;
+      const defaultH = 0.14;
+      const x = clamp01(clientX / stageWidth - defaultW / 2);
+      const y = clamp01(clientY / stageHeight - defaultH / 2);
+
+      onCreate(
+        {
+          x,
+          y,
+          width: defaultW,
+          height: defaultH,
+        },
+        droppedProduct.id
+      );
+    } catch (err) {
+      console.error("Failed to process dropped product:", err);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -177,6 +211,11 @@ export default function FlyerEditorCanvas({
         width: stageWidth > 0 ? `${stageWidth}px` : "100%",
         minHeight: `${stageHeight || 600}px`,
       }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={handleDrop}
     >
       {image && stageWidth > 0 && (
         <Stage
@@ -225,6 +264,9 @@ export default function FlyerEditorCanvas({
                     e.cancelBubble = true;
                     onSelect(hotspot.id);
                   }}
+                  onDragStart={() => {
+                    onSelect(hotspot.id);
+                  }}
                   onMouseEnter={(e) => {
                     const stage = e.target.getStage();
                     if (stage) stage.container().style.cursor = "move";
@@ -235,9 +277,11 @@ export default function FlyerEditorCanvas({
                   }}
                   onDragEnd={(event) => {
                     const node = event.target;
+                    const newX = Math.max(0, Math.min(1 - hotspot.width, node.x() / stageWidth));
+                    const newY = Math.max(0, Math.min(1 - hotspot.height, node.y() / stageHeight));
                     onUpdate(hotspot.id, {
-                      x: clamp01(node.x() / stageWidth),
-                      y: clamp01(node.y() / stageHeight),
+                      x: clamp01(newX),
+                      y: clamp01(newY),
                       width: hotspot.width,
                       height: hotspot.height,
                     });
@@ -248,11 +292,15 @@ export default function FlyerEditorCanvas({
                     const scaleY = node.scaleY();
                     node.scaleX(1);
                     node.scaleY(1);
+                    const newWidth = clamp01((node.width() * scaleX) / stageWidth);
+                    const newHeight = clamp01((node.height() * scaleY) / stageHeight);
+                    const newX = clamp01(node.x() / stageWidth);
+                    const newY = clamp01(node.y() / stageHeight);
                     onUpdate(hotspot.id, {
-                      x: clamp01(node.x() / stageWidth),
-                      y: clamp01(node.y() / stageHeight),
-                      width: clamp01((node.width() * scaleX) / stageWidth),
-                      height: clamp01((node.height() * scaleY) / stageHeight),
+                      x: Math.min(newX, 1 - newWidth),
+                      y: Math.min(newY, 1 - newHeight),
+                      width: newWidth,
+                      height: newHeight,
                     });
                   }}
                 />
