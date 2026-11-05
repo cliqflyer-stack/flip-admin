@@ -4,7 +4,7 @@
  */
 
 export const API_BASE =
-  import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  import.meta.env.VITE_API_URL || 'https://flip-api-kdfp.onrender.com';
 
 export interface Merchant {
   id: string;
