@@ -339,17 +339,32 @@ export function EditorView({
       {/* Studio Top Control Bar */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 gap-2">
         {/* Breadcrumb Navigation back to stores & flyers */}
-        <div className="flex items-center gap-2 text-xs truncate">
+        <div className="flex items-center gap-1.5 text-xs truncate">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSelectedStoreId(null);
+              onSelectFlyer("");
+            }}
+            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            title="All Stores"
+          >
+            <Store className="h-3.5 w-3.5" />
+            <span>Stores</span>
+          </Button>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onSelectFlyer("")}
             className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            title="Store Circulars"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Circulars</span>
           </Button>
-          <Separator orientation="vertical" className="h-4" />
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span className="font-semibold text-foreground truncate">{currentFlyer?.title}</span>
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
             {hotspots.length} hotspots

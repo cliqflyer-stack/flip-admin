@@ -91,13 +91,25 @@ function AdminContent() {
   // View navigation helper
   const handleSelectView = (view: AdminView, targetFlyerId?: string) => {
     navigate({
-      search: (prev) => ({
-        ...prev,
-        view,
-        flyerId: targetFlyerId !== undefined ? targetFlyerId : prev.flyerId || selectedFlyerId || undefined,
-      }),
+      search: (prev) => {
+        const next: Record<string, unknown> = {
+          ...prev,
+          view,
+        };
+        if (targetFlyerId) {
+          next.flyerId = targetFlyerId;
+        } else {
+          delete next.flyerId;
+        }
+        delete next.storeId;
+        delete next.productId;
+        return next;
+      },
       replace: true,
     });
+    if (!targetFlyerId) {
+      setSelectedFlyerId("");
+    }
   };
 
   // Load initial remote data from Neon API
@@ -119,23 +131,26 @@ function AdminContent() {
 
       if (flyersData.length > 0) {
         setFlyersList(flyersData);
-        const targetFlyer =
-          (urlFlyerId && flyersData.find((f) => f.id === urlFlyerId)) ||
-          flyersData[0];
-
-        setSelectedFlyerId(targetFlyer.id);
-        setImageUrl(resolveImageUrl(targetFlyer.flyerImageUrl));
-        if (targetFlyer.hotspots) {
-          setHotspots(
-            targetFlyer.hotspots.map((h) => ({
-              id: h.id,
-              productId: h.productId,
-              x: h.x,
-              y: h.y,
-              width: h.width,
-              height: h.height,
-            }))
-          );
+        if (urlFlyerId) {
+          const targetFlyer = flyersData.find((f) => f.id === urlFlyerId);
+          if (targetFlyer) {
+            setSelectedFlyerId(targetFlyer.id);
+            setImageUrl(resolveImageUrl(targetFlyer.flyerImageUrl));
+            if (targetFlyer.hotspots) {
+              setHotspots(
+                targetFlyer.hotspots.map((h) => ({
+                  id: h.id,
+                  productId: h.productId,
+                  x: h.x,
+                  y: h.y,
+                  width: h.width,
+                  height: h.height,
+                }))
+              );
+            }
+          }
+        } else {
+          setSelectedFlyerId("");
         }
       }
     } catch (e) {
@@ -172,8 +187,10 @@ function AdminContent() {
           );
         }
       }
+    } else if (!urlFlyerId && selectedFlyerId) {
+      setSelectedFlyerId("");
     }
-  }, [urlFlyerId, flyersList]);
+  }, [urlFlyerId, flyersList, selectedFlyerId]);
 
   // Read natural image dimensions
   useEffect(() => {
@@ -185,6 +202,20 @@ function AdminContent() {
 
   // Select flyer
   const handleSelectFlyer = (id: string) => {
+    if (!id) {
+      setSelectedFlyerId("");
+      navigate({
+        search: (prev) => {
+          const next = { ...prev };
+          delete next.flyerId;
+          return next;
+        },
+        replace: true,
+      });
+      setSelectedHotspotId(null);
+      return;
+    }
+
     const flyer = flyersList.find((f) => f.id === id);
     if (!flyer) return;
 
