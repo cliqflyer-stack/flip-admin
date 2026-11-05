@@ -14,4 +14,20 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("matches dedicated /login route", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    const matches = router.matchRoutes("/login");
+
+    expect(matches.at(-1)?.routeId).toBe("/login");
+  });
+
+  it("matches /admin route", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    const matches = router.matchRoutes("/admin");
+
+    expect(matches.at(-1)?.routeId).toBe("/admin");
+  });
 });

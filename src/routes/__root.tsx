@@ -80,14 +80,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Flip — Interactive Digital Circular & Retail Media Studio" },
+      {
+        name: "description",
+        content:
+          "Create shoppable digital circulars, map interactive product hotspots, and deliver high-converting mobile retail experiences.",
+      },
+      { name: "author", content: "Flip Retail Media" },
+      { property: "og:title", content: "Flip — Interactive Digital Circular & Retail Media Studio" },
+      {
+        property: "og:description",
+        content:
+          "Create shoppable digital circulars, map interactive product hotspots, and deliver high-converting mobile retail experiences.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@FlipStudio" },
     ],
     links: [
       {
