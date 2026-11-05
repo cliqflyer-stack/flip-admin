@@ -9,6 +9,7 @@ import {
   Loader2,
   MapPin,
   Monitor,
+  Navigation,
   Phone,
   Smartphone,
   Sparkles,
@@ -386,13 +387,35 @@ function DynamicPreviewPage() {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-muted-foreground text-[11px] mt-0.5">
+                  <div className="flex flex-wrap items-center gap-3 text-muted-foreground text-[11px] mt-0.5">
                     <span className="flex items-center gap-1">
                       <MapPin className="h-3 w-3 text-primary" />
                       {activeLocation ? `${activeLocation.name} · ${activeLocation.city}` : "Chain-wide (All Stores)"}
                     </span>
                     {activeLocation?.phone && (
                       <span className="hidden sm:inline">· {activeLocation.phone}</span>
+                    )}
+                    {activeLocation && (
+                      <a
+                        href={
+                          activeLocation.latitude && activeLocation.longitude
+                            ? `https://www.google.com/maps/dir/?api=1&destination=${activeLocation.latitude},${activeLocation.longitude}`
+                            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                activeLocation.name + " " + activeLocation.address + " " + activeLocation.city
+                              )}`
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-semibold"
+                      >
+                        <Navigation className="h-3 w-3" />
+                        <span>Map & Directions</span>
+                        {activeLocation.latitude && activeLocation.longitude && (
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            ({activeLocation.latitude.toFixed(4)}, {activeLocation.longitude.toFixed(4)})
+                          </span>
+                        )}
+                      </a>
                     )}
                   </div>
                 </div>

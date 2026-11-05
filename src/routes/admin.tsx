@@ -373,6 +373,8 @@ function AdminContent() {
               selectedFlyerId={selectedFlyerId}
               onSelectFlyer={handleSelectFlyer}
               catalogProducts={catalogProducts}
+              merchants={merchantsList}
+              onProductCreated={(p) => setCatalogProducts((prev) => [p, ...prev])}
               hotspots={hotspots}
               selectedHotspotId={selectedHotspotId}
               onSelectHotspot={setSelectedHotspotId}
@@ -402,6 +404,9 @@ function AdminContent() {
               storeLocations={storeLocationsList}
               flyers={flyersList}
               onLocationCreated={(loc) => setStoreLocationsList((prev) => [loc, ...prev])}
+              onLocationUpdated={(loc) =>
+                setStoreLocationsList((prev) => prev.map((l) => (l.id === loc.id ? loc : l)))
+              }
               onLocationDeleted={(id) => setStoreLocationsList((prev) => prev.filter((l) => l.id !== id))}
               loading={loading}
             />
@@ -412,6 +417,12 @@ function AdminContent() {
               products={catalogProducts}
               merchants={merchantsList}
               onProductCreated={(p) => setCatalogProducts((prev) => [p, ...prev])}
+              onProductUpdated={(p) =>
+                setCatalogProducts((prev) => prev.map((item) => (item.id === p.id ? p : item)))
+              }
+              onProductDeleted={(id) =>
+                setCatalogProducts((prev) => prev.filter((item) => item.id !== id))
+              }
               loading={loading}
             />
           )}

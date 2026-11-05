@@ -32,7 +32,9 @@ import {
   resolveImageUrl,
   type ApiFlyer,
   type ApiProduct,
+  type Merchant,
 } from "@/lib/api-client";
+import { ProductDialog } from "./ProductDialog";
 import type { Hotspot, HotspotRect } from "@/lib/flyer-storage";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +45,8 @@ interface EditorViewProps {
   selectedFlyerId: string;
   onSelectFlyer: (id: string) => void;
   catalogProducts: ApiProduct[];
+  merchants?: Merchant[];
+  onProductCreated?: (product: ApiProduct) => void;
   hotspots: Hotspot[];
   selectedHotspotId: string | null;
   onSelectHotspot: (id: string | null) => void;
@@ -61,6 +65,8 @@ export function EditorView({
   selectedFlyerId,
   onSelectFlyer,
   catalogProducts,
+  merchants = [],
+  onProductCreated,
   hotspots,
   selectedHotspotId,
   onSelectHotspot,
@@ -77,6 +83,7 @@ export function EditorView({
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [drawProduct, setDrawProduct] = useState<ApiProduct | null>(null);
   const [zoom, setZoom] = useState(1.0);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
 
   // Keyboard shortcut for saving (Ctrl/Cmd + S)
   useEffect(() => {
@@ -173,9 +180,20 @@ export function EditorView({
               <h2 className="text-xs font-bold tracking-tight uppercase text-muted-foreground">
                 1. Product Catalog
               </h2>
-              <Badge variant="secondary" className="text-[10px] font-semibold">
-                {filteredProducts.length} items
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setProductDialogOpen(true)}
+                  className="h-6 px-2 text-[10px] gap-1 font-semibold text-primary border-primary/30 hover:bg-primary/10 shadow-2xs"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Product
+                </Button>
+                <Badge variant="secondary" className="text-[10px] font-semibold">
+                  {filteredProducts.length}
+                </Badge>
+              </div>
             </div>
 
             <div className="relative">
@@ -469,6 +487,19 @@ export function EditorView({
           </div>
         </aside>
       </div>
+
+      {/* Product Creator Dialog within Flyer Studio */}
+      <ProductDialog
+        open={productDialogOpen}
+        onOpenChange={setProductDialogOpen}
+        merchants={merchants}
+        defaultMerchantId={currentFlyer?.merchantId}
+        onSave={(newProd) => {
+          if (onProductCreated) onProductCreated(newProd);
+          setDrawProduct(newProd);
+          toast.success(`"${newProd.name}" ready to place! Click & drag a rectangle on the flyer.`);
+        }}
+      />
     </div>
   );
 }

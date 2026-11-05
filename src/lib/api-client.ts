@@ -37,7 +37,7 @@ export interface Merchant {
 
 export interface ApiProduct {
   id: string;
-  merchantId?: string;
+  merchantId?: string | null;
   name: string;
   brand: string;
   description: string;
@@ -45,9 +45,22 @@ export interface ApiProduct {
   offerPrice: string | number;
   unit: string;
   category: string;
+  sku?: string | null;
   imageUrl: string;
   merchant?: Merchant;
+  createdAt?: string;
 }
+
+export const PRODUCT_PRESET_IMAGES = [
+  { label: 'Coca-Cola', url: '/uploads/products/coca-cola.jpg' },
+  { label: 'Lay\'s Chips', url: '/uploads/products/lays.jpg' },
+  { label: 'Doritos Nacho', url: '/uploads/products/doritos.jpg' },
+  { label: 'Oreo Cookies', url: '/uploads/products/oreo.jpg' },
+  { label: 'Froot Loops', url: '/uploads/products/froot-loops.jpg' },
+  { label: 'Red Bull Energy', url: '/uploads/products/red-bull.jpg' },
+  { label: 'Tide Pods', url: '/uploads/products/tide.jpg' },
+  { label: 'Colgate Toothpaste', url: '/uploads/products/colgate.jpg' },
+];
 
 export interface ApiHotspot {
   id: string;
@@ -170,6 +183,24 @@ export async function createProduct(data: Partial<ApiProduct>): Promise<ApiProdu
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to create product');
+  return res.json();
+}
+
+export async function updateProduct(id: string, data: Partial<ApiProduct>): Promise<ApiProduct> {
+  const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update product');
+  return res.json();
+}
+
+export async function deleteProduct(id: string): Promise<{ success: boolean; deletedId: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete product');
   return res.json();
 }
 

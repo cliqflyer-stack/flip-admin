@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { StoreLocation, ApiFlyer } from "@/lib/api-client";
+import type { StoreLocation, ApiFlyer, ApiProduct } from "@/lib/api-client";
+import { PRODUCT_PRESET_IMAGES } from "@/lib/api-client";
 
 describe("Store Locations & Dynamic Flyer Preview", () => {
   const mockLocation: StoreLocation = {
@@ -8,23 +9,20 @@ describe("Store Locations & Dynamic Flyer Preview", () => {
     name: "Downtown Flagship",
     address: "100 Main St, Suite 4",
     city: "Toronto",
-    state: "ON",
+    province: "ON",
     postalCode: "M5V 2N8",
     phone: "416-555-0199",
     latitude: 43.6532,
     longitude: -79.3832,
-    isActive: true,
   };
 
   const chainWideFlyer: ApiFlyer = {
     id: "flyer_chain_01",
     merchantId: "fresh_market",
     title: "Weekly Super Deals",
-    description: "Chain-wide flyer across all franchise locations",
-    pdfUrl: "https://example.com/flyer.pdf",
-    totalPages: 4,
-    validFrom: "2026-11-01T00:00:00Z",
-    validTo: "2026-11-07T23:59:59Z",
+    flyerImageUrl: "/uploads/flyers/flyer.jpg",
+    aspectRatio: 1.414,
+    pageCount: 1,
     status: "published",
     storeLocationId: null,
   };
@@ -33,14 +31,25 @@ describe("Store Locations & Dynamic Flyer Preview", () => {
     id: "flyer_store_01",
     merchantId: "fresh_market",
     title: "Downtown Specials",
-    description: "Exclusive to Downtown branch",
-    pdfUrl: "https://example.com/flyer-downtown.pdf",
-    totalPages: 2,
-    validFrom: "2026-11-01T00:00:00Z",
-    validTo: "2026-11-07T23:59:59Z",
+    flyerImageUrl: "/uploads/flyers/flyer-downtown.jpg",
+    aspectRatio: 1.414,
+    pageCount: 1,
     status: "published",
     storeLocationId: "loc_downtown_01",
     storeLocation: mockLocation,
+  };
+
+  const sampleProduct: ApiProduct = {
+    id: "prod_lays_classic",
+    name: "Lay's Classic Potato Chips 220g",
+    brand: "Lay's",
+    category: "Snacks",
+    unit: "220g",
+    sku: "06563345",
+    regularPrice: "4.99",
+    offerPrice: "3.49",
+    description: "Classic potato chips with signature crunch",
+    imageUrl: "/uploads/products/lays.jpg",
   };
 
   it("differentiates chain-wide flyers from store-wise flyers", () => {
@@ -50,6 +59,33 @@ describe("Store Locations & Dynamic Flyer Preview", () => {
     expect(storeWiseFlyer.storeLocationId).toBe("loc_downtown_01");
     expect(storeWiseFlyer.storeLocation?.name).toBe("Downtown Flagship");
     expect(storeWiseFlyer.storeLocation?.city).toBe("Toronto");
+  });
+
+  it("validates store GPS coordinates for map visibility", () => {
+    expect(mockLocation.latitude).toBeDefined();
+    expect(mockLocation.longitude).toBeDefined();
+    expect(mockLocation.latitude!).toBeGreaterThanOrEqual(-90);
+    expect(mockLocation.latitude!).toBeLessThanOrEqual(90);
+    expect(mockLocation.longitude!).toBeGreaterThanOrEqual(-180);
+    expect(mockLocation.longitude!).toBeLessThanOrEqual(180);
+  });
+
+  it("calculates product deal savings percentage correctly", () => {
+    const reg = parseFloat(String(sampleProduct.regularPrice));
+    const off = parseFloat(String(sampleProduct.offerPrice));
+    const savings = Math.round(((reg - off) / reg) * 100);
+
+    expect(savings).toBe(30);
+    expect(sampleProduct.unit).toBe("220g");
+    expect(sampleProduct.sku).toBe("06563345");
+  });
+
+  it("has valid product image presets", () => {
+    expect(PRODUCT_PRESET_IMAGES.length).toBeGreaterThanOrEqual(5);
+    PRODUCT_PRESET_IMAGES.forEach((p) => {
+      expect(p.label).toBeDefined();
+      expect(p.url).toMatch(/^\/uploads\/products\/.+\.jpg$/);
+    });
   });
 
   it("filters flyers by store location correctly", () => {
