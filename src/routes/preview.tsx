@@ -162,10 +162,10 @@ function DynamicPreviewPage() {
         id: rawProduct.id,
         name: rawProduct.name,
         brand: rawProduct.brand,
-        description: rawProduct.description,
-        regularPrice: Number(rawProduct.regularPrice),
-        offerPrice: Number(rawProduct.offerPrice),
-        image: resolveImageUrl(rawProduct.imageUrl),
+        description: rawProduct.description || "",
+        regularPrice: Number(rawProduct.originalPrice || rawProduct.regularPrice || rawProduct.offerPrice || 0),
+        offerPrice: Number(rawProduct.offerPrice || 0),
+        imageUrl: resolveImageUrl(rawProduct.imageUrl || (rawProduct as any).image),
         category: rawProduct.category,
       }
     : null;
@@ -688,6 +688,7 @@ function DynamicPreviewPage() {
         onOpenChange={(open) => {
           if (!open) setSelectedHotspotId(null);
         }}
+        onClose={() => setSelectedHotspotId(null)}
         onAddToList={(prod) => {
           setSelectedHotspotId(null);
         }}
