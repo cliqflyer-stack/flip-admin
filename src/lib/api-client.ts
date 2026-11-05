@@ -6,6 +6,21 @@
 export const API_BASE =
   import.meta.env.VITE_API_URL || 'https://flip-api-kdfp.onrender.com';
 
+export interface StoreLocation {
+  id: string;
+  merchantId: string;
+  name: string;
+  address: string;
+  city: string;
+  province: string;
+  postalCode?: string;
+  latitude?: number;
+  longitude?: number;
+  phone?: string;
+  merchant?: Merchant;
+  flyers?: ApiFlyer[];
+}
+
 export interface Merchant {
   id: string;
   name: string;
@@ -14,7 +29,10 @@ export interface Merchant {
   logoBg: string;
   logoColor: string;
   logoUrl?: string;
+  bannerUrl?: string;
+  categoryId?: string;
   website?: string;
+  locations?: StoreLocation[];
 }
 
 export interface ApiProduct {
@@ -48,6 +66,7 @@ export interface ApiHotspot {
 export interface ApiFlyer {
   id: string;
   merchantId: string;
+  storeLocationId?: string | null;
   title: string;
   subtitle?: string;
   badgeText?: string;
@@ -59,6 +78,7 @@ export interface ApiFlyer {
   createdAt?: string;
   updatedAt?: string;
   merchant?: Merchant;
+  storeLocation?: StoreLocation | null;
   hotspots?: ApiHotspot[];
 }
 
@@ -156,6 +176,42 @@ export async function createProduct(data: Partial<ApiProduct>): Promise<ApiProdu
 export async function fetchMerchants(): Promise<Merchant[]> {
   const res = await fetch(`${API_BASE}/api/v1/merchants`);
   if (!res.ok) throw new Error('Failed to fetch merchants');
+  return res.json();
+}
+
+export async function fetchStoreLocations(merchantId?: string): Promise<StoreLocation[]> {
+  const url = new URL(`${API_BASE}/api/v1/store-locations`);
+  if (merchantId) url.searchParams.set('merchantId', merchantId);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error('Failed to fetch store locations');
+  return res.json();
+}
+
+export async function createStoreLocation(data: Partial<StoreLocation>): Promise<StoreLocation> {
+  const res = await fetch(`${API_BASE}/api/v1/store-locations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create store location');
+  return res.json();
+}
+
+export async function updateStoreLocation(id: string, data: Partial<StoreLocation>): Promise<StoreLocation> {
+  const res = await fetch(`${API_BASE}/api/v1/store-locations/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update store location');
+  return res.json();
+}
+
+export async function deleteStoreLocation(id: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/api/v1/store-locations/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete store location');
   return res.json();
 }
 

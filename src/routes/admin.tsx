@@ -38,6 +38,7 @@ import {
   fetchMerchants,
   fetchProducts,
   fetchStats,
+  fetchStoreLocations,
   resolveImageUrl,
   saveHotspotsBatch,
   uploadImage,
@@ -45,6 +46,7 @@ import {
   type ApiProduct,
   type DashboardStats,
   type Merchant,
+  type StoreLocation,
 } from "@/lib/api-client";
 import type { Hotspot, HotspotRect } from "@/lib/flyer-storage";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -54,6 +56,7 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { DashboardView } from "@/components/admin/DashboardView";
 import { EditorView } from "@/components/admin/EditorView";
 import { TemplatesView } from "@/components/admin/TemplatesView";
+import { StoresView } from "@/components/admin/StoresView";
 import { ProductsView } from "@/components/admin/ProductsView";
 import { SettingsView } from "@/components/admin/SettingsView";
 
@@ -88,6 +91,7 @@ function AdminContent() {
   const [selectedFlyerId, setSelectedFlyerId] = useState<string>("");
   const [catalogProducts, setCatalogProducts] = useState<ApiProduct[]>([]);
   const [merchantsList, setMerchantsList] = useState<Merchant[]>([]);
+  const [storeLocationsList, setStoreLocationsList] = useState<StoreLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -101,6 +105,7 @@ function AdminContent() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [newFlyerTitle, setNewFlyerTitle] = useState("");
   const [newFlyerStore, setNewFlyerStore] = useState("merch_drug_mart");
+  const [newFlyerLocation, setNewFlyerLocation] = useState("all");
   const [uploadingFlyer, setUploadingFlyer] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,16 +113,18 @@ function AdminContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsData, flyersData, productsData, merchantsData] = await Promise.all([
+      const [statsData, flyersData, productsData, merchantsData, locationsData] = await Promise.all([
         fetchStats().catch(() => null),
         fetchFlyers().catch(() => []),
         fetchProducts().catch(() => []),
         fetchMerchants().catch(() => []),
+        fetchStoreLocations().catch(() => []),
       ]);
 
       if (statsData) setStats(statsData);
       if (productsData.length > 0) setCatalogProducts(productsData);
       if (merchantsData.length > 0) setMerchantsList(merchantsData);
+      if (locationsData.length > 0) setStoreLocationsList(locationsData);
 
       if (flyersData.length > 0) {
         setFlyersList(flyersData);
@@ -269,6 +276,7 @@ function AdminContent() {
       const uploadRes = await uploadImage(file);
       const created = await createFlyer({
         merchantId: newFlyerStore || (merchantsList[0]?.id ?? "merch_drug_mart"),
+        storeLocationId: newFlyerLocation === "all" ? undefined : newFlyerLocation,
         title: newFlyerTitle || file.name.replace(/\.[^/.]+$/, ""),
         subtitle: "Weekly Deals · Live Flyer",
         badgeText: "NEW",
@@ -331,6 +339,7 @@ function AdminContent() {
         onSelectView={setCurrentView}
         flyersCount={flyersList.length}
         productsCount={catalogProducts.length}
+        storeLocationsCount={storeLocationsList.length}
       />
 
       <SidebarInset className="flex flex-col flex-1 min-w-0 bg-background overflow-hidden">
@@ -384,6 +393,17 @@ function AdminContent() {
               catalogProducts={catalogProducts}
               onFlyerCreated={handleFlyerCreatedFromTemplate}
               currentFlyer={currentFlyer}
+            />
+          )}
+
+          {currentView === "stores" && (
+            <StoresView
+              merchants={merchantsList}
+              storeLocations={storeLocationsList}
+              flyers={flyersList}
+              onLocationCreated={(loc) => setStoreLocationsList((prev) => [loc, ...prev])}
+              onLocationDeleted={(id) => setStoreLocationsList((prev) => prev.filter((l) => l.id !== id))}
+              loading={loading}
             />
           )}
 
@@ -441,6 +461,29 @@ function AdminContent() {
                       {m.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="upload-location" className="text-xs font-semibold">
+                Target Franchise Branch (Optional)
+              </Label>
+              <Select value={newFlyerLocation} onValueChange={setNewFlyerLocation}>
+                <SelectTrigger id="upload-location" className="text-xs">
+                  <SelectValue placeholder="All Stores (Chain-wide)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">
+                    All Locations (Chain-wide / Multi-store)
+                  </SelectItem>
+                  {storeLocationsList
+                    .filter((l) => l.merchantId === newFlyerStore)
+                    .map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id} className="text-xs">
+                        {loc.name} ({loc.city})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

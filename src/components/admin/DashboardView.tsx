@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Eye,
   Layers,
+  MapPin,
   Package,
   Plus,
   Sparkles,
@@ -240,7 +241,13 @@ export function DashboardView({
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                        <MapPin className="h-3 w-3 text-primary shrink-0" />
+                        <span className="truncate font-medium">
+                          {flyer.storeLocation?.name || "Chain-wide (All Stores)"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                         {flyer.subtitle || "Weekly digital circular"}
                       </p>
                     </CardContent>
@@ -257,7 +264,7 @@ export function DashboardView({
                     </Button>
 
                     <Button asChild variant="outline" size="sm" className="h-8 px-2.5">
-                      <Link to="/preview">
+                      <Link to="/preview" search={{ flyerId: flyer.id } as any}>
                         <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                       </Link>
                     </Button>

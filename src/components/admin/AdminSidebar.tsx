@@ -39,13 +39,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
 
-export type AdminView = "dashboard" | "editor" | "templates" | "products" | "settings";
+export type AdminView = "dashboard" | "editor" | "templates" | "stores" | "products" | "settings";
 
 interface AdminSidebarProps {
   currentView: AdminView;
   onSelectView: (view: AdminView) => void;
   flyersCount?: number;
   productsCount?: number;
+  storeLocationsCount?: number;
 }
 
 export function AdminSidebar({
@@ -53,6 +54,7 @@ export function AdminSidebar({
   onSelectView,
   flyersCount = 0,
   productsCount = 0,
+  storeLocationsCount = 0,
 }: AdminSidebarProps) {
   const { user, logout } = useAuth();
 
@@ -78,6 +80,12 @@ export function AdminSidebar({
   ];
 
   const inventoryNavItems = [
+    {
+      id: "stores" as AdminView,
+      title: "Stores & Locations",
+      icon: Store,
+      badge: storeLocationsCount > 0 ? `${storeLocationsCount}` : undefined,
+    },
     {
       id: "products" as AdminView,
       title: "Product Catalog",

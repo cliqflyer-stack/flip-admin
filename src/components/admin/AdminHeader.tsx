@@ -27,6 +27,7 @@ const VIEW_NAMES: Record<AdminView, string> = {
   dashboard: "Dashboard Overview",
   editor: "Interactive Flyer Studio",
   templates: "Templates Library",
+  stores: "Franchises & Store Locations",
   products: "Product Catalog",
   settings: "Settings & API",
 };
