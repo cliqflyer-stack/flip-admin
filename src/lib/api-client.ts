@@ -257,6 +257,67 @@ export async function uploadImage(file: File): Promise<{ success: boolean; url: 
   return res.json();
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+  phone?: string | null;
+  avatarUrl?: string | null;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  user: AuthUser;
+  token: string;
+}
+
+export async function loginUser(
+  email: string,
+  password: string,
+  adminOnly = true
+): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, adminOnly }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Authentication failed');
+  }
+  return data;
+}
+
+export async function registerUser(payload: {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Registration failed');
+  }
+  return data;
+}
+
+export async function fetchCurrentUser(token: string): Promise<{ user: AuthUser }> {
+  const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to verify session');
+  }
+  return data;
+}
+
 /**
  * Resolves an image URL: if relative (like /uploads/...), prepends API_BASE
  */

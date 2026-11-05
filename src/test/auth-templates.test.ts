@@ -5,7 +5,7 @@ import { TEMPLATES_LIBRARY } from "@/lib/templates-data";
 describe("Admin Authentication & Templates", () => {
   it("provides valid demo credentials", () => {
     expect(DEMO_CREDENTIALS.email).toBe("admin@flip.local");
-    expect(DEMO_CREDENTIALS.password).toBe("flip2026!");
+    expect(DEMO_CREDENTIALS.password).toBe("FlipAdmin2026!");
   });
 
   it("contains pre-configured retail flyer templates", () => {

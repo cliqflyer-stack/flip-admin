@@ -61,6 +61,10 @@ import { ProductsView } from "@/components/admin/ProductsView";
 import { SettingsView } from "@/components/admin/SettingsView";
 
 export const Route = createFileRoute("/admin")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    view: (search.view as AdminView) || "dashboard",
+    flyerId: (search.flyerId as string) || undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Flip Admin — Interactive Flyer & Studio Management" },
@@ -84,11 +88,15 @@ function AdminPageWrapper() {
 
 function AdminContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const searchParams = Route.useSearch();
+  const navigate = Route.useNavigate();
 
-  const [currentView, setCurrentView] = useState<AdminView>("dashboard");
+  const currentView: AdminView = searchParams.view || "dashboard";
+  const urlFlyerId = searchParams.flyerId;
+
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [flyersList, setFlyersList] = useState<ApiFlyer[]>([]);
-  const [selectedFlyerId, setSelectedFlyerId] = useState<string>("");
+  const [selectedFlyerId, setSelectedFlyerId] = useState<string>(urlFlyerId || "");
   const [catalogProducts, setCatalogProducts] = useState<ApiProduct[]>([]);
   const [merchantsList, setMerchantsList] = useState<Merchant[]>([]);
   const [storeLocationsList, setStoreLocationsList] = useState<StoreLocation[]>([]);
@@ -100,6 +108,18 @@ function AdminContent() {
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
+
+  // View navigation helper
+  const handleSelectView = (view: AdminView, targetFlyerId?: string) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        view,
+        flyerId: targetFlyerId !== undefined ? targetFlyerId : prev.flyerId || selectedFlyerId || undefined,
+      }),
+      replace: true,
+    });
+  };
 
   // Upload modal states
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -128,22 +148,23 @@ function AdminContent() {
 
       if (flyersData.length > 0) {
         setFlyersList(flyersData);
-        if (!selectedFlyerId) {
-          const first = flyersData[0];
-          setSelectedFlyerId(first.id);
-          setImageUrl(resolveImageUrl(first.flyerImageUrl));
-          if (first.hotspots) {
-            setHotspots(
-              first.hotspots.map((h) => ({
-                id: h.id,
-                productId: h.productId,
-                x: h.x,
-                y: h.y,
-                width: h.width,
-                height: h.height,
-              }))
-            );
-          }
+        const targetFlyer =
+          (urlFlyerId && flyersData.find((f) => f.id === urlFlyerId)) ||
+          flyersData[0];
+
+        setSelectedFlyerId(targetFlyer.id);
+        setImageUrl(resolveImageUrl(targetFlyer.flyerImageUrl));
+        if (targetFlyer.hotspots) {
+          setHotspots(
+            targetFlyer.hotspots.map((h) => ({
+              id: h.id,
+              productId: h.productId,
+              x: h.x,
+              y: h.y,
+              width: h.width,
+              height: h.height,
+            }))
+          );
         }
       }
     } catch (e) {
@@ -159,6 +180,30 @@ function AdminContent() {
     }
   }, [isAuthenticated]);
 
+  // Sync selected flyer if URL search param changes
+  useEffect(() => {
+    if (urlFlyerId && urlFlyerId !== selectedFlyerId && flyersList.length > 0) {
+      const flyer = flyersList.find((f) => f.id === urlFlyerId);
+      if (flyer) {
+        setSelectedFlyerId(flyer.id);
+        setImageUrl(resolveImageUrl(flyer.flyerImageUrl));
+        setSelectedHotspotId(null);
+        if (flyer.hotspots) {
+          setHotspots(
+            flyer.hotspots.map((h) => ({
+              id: h.id,
+              productId: h.productId,
+              x: h.x,
+              y: h.y,
+              width: h.width,
+              height: h.height,
+            }))
+          );
+        }
+      }
+    }
+  }, [urlFlyerId, flyersList]);
+
   // Read natural image dimensions
   useEffect(() => {
     if (!imageUrl) return;
@@ -173,6 +218,13 @@ function AdminContent() {
     if (!flyer) return;
 
     setSelectedFlyerId(id);
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        flyerId: id,
+      }),
+      replace: true,
+    });
     setImageUrl(resolveImageUrl(flyer.flyerImageUrl));
     setSelectedHotspotId(null);
 
@@ -295,7 +347,7 @@ function AdminContent() {
       const refreshed = await fetchFlyers();
       setFlyersList(refreshed);
       handleSelectFlyer(created.id);
-      setCurrentView("editor");
+      handleSelectView("editor", created.id);
     } catch (err: any) {
       toast.error(`Upload failed: ${err.message}`);
     } finally {
@@ -306,7 +358,7 @@ function AdminContent() {
   const handleFlyerCreatedFromTemplate = (created: ApiFlyer) => {
     setFlyersList((prev) => [created, ...prev]);
     handleSelectFlyer(created.id);
-    setCurrentView("editor");
+    handleSelectView("editor", created.id);
   };
 
   // 1. Loading auth state
@@ -336,7 +388,7 @@ function AdminContent() {
     <SidebarProvider defaultOpen={true}>
       <AdminSidebar
         currentView={currentView}
-        onSelectView={setCurrentView}
+        onSelectView={handleSelectView}
         flyersCount={flyersList.length}
         productsCount={catalogProducts.length}
         storeLocationsCount={storeLocationsList.length}
@@ -345,7 +397,7 @@ function AdminContent() {
       <SidebarInset className="flex flex-col flex-1 min-w-0 bg-background overflow-hidden">
         <AdminHeader
           currentView={currentView}
-          onSelectView={setCurrentView}
+          onSelectView={handleSelectView}
           onOpenUpload={() => setUploadModalOpen(true)}
           selectedFlyerTitle={currentFlyer?.title}
         />
@@ -359,10 +411,10 @@ function AdminContent() {
               loading={loading}
               onSelectFlyerToEdit={(id) => {
                 handleSelectFlyer(id);
-                setCurrentView("editor");
+                handleSelectView("editor", id);
               }}
               onOpenUpload={() => setUploadModalOpen(true)}
-              onSelectView={setCurrentView}
+              onSelectView={handleSelectView}
               onDeleteFlyer={handleDeleteFlyer}
             />
           )}

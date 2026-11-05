@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { fetchCurrentUser, loginUser } from "./api-client";
 
 export interface AdminUser {
   email: string;
@@ -16,11 +17,12 @@ interface AuthContextType {
 }
 
 const STORAGE_KEY = "flip_admin_session";
+const TOKEN_KEY = "flip_admin_token";
 
-// Demo credentials
+// Configured admin credentials seeded on Neon Postgres
 export const DEMO_CREDENTIALS = {
   email: "admin@flip.local",
-  password: "flip2026!",
+  password: "FlipAdmin2026!",
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,17 +32,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setUser(parsed);
+    const initAuth = async () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const token = localStorage.getItem(TOKEN_KEY);
+
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setUser(parsed);
+        }
+
+        if (token) {
+          try {
+            const remoteUser = await fetchCurrentUser(token);
+            if (!remoteUser.user || remoteUser.user.role !== "admin") {
+              logout();
+            } else {
+              setUser({
+                email: remoteUser.user.email,
+                name: remoteUser.user.name,
+                role: remoteUser.user.role,
+                avatarUrl: remoteUser.user.avatarUrl,
+              });
+            }
+          } catch (e) {
+            // Token may have expired
+            console.warn("Session verification failed, logging out", e);
+            logout();
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load admin session from storage", e);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (e) {
-      console.warn("Failed to load admin session from storage", e);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -52,34 +80,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "Please enter both email and password." };
     }
 
-    // Demo credentials check OR standard admin credentials
-    const isDemo = cleanEmail === DEMO_CREDENTIALS.email && cleanPass === DEMO_CREDENTIALS.password;
-    const isValidAdmin = cleanEmail.includes("@") && cleanPass.length >= 6;
+    try {
+      // Connect to real backend API (Neon Postgres) to verify credentials and ensure user has 'admin' role
+      const res = await loginUser(cleanEmail, cleanPass, true);
 
-    if (isDemo || isValidAdmin) {
+      if (!res.user || res.user.role !== "admin") {
+        return {
+          success: false,
+          error: "Access denied. Only administrators can log in to the admin platform.",
+        };
+      }
+
       const adminUser: AdminUser = {
-        email: cleanEmail,
-        name: isDemo ? "Store Administrator" : cleanEmail.split("@")[0].replace(/[._-]/g, " "),
-        role: "Super Admin",
-        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
+        email: res.user.email,
+        name: res.user.name || cleanEmail.split("@")[0].replace(/[._-]/g, " "),
+        role: "admin",
+        avatarUrl: res.user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
       };
 
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser));
+        localStorage.setItem(TOKEN_KEY, res.token);
       } catch (e) {
         console.warn("Could not persist session", e);
       }
 
       setUser(adminUser);
       return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || "Invalid credentials or unauthorized. Only admins can access.",
+      };
     }
-
-    return { success: false, error: "Invalid credentials. Use demo: admin@flip.local / flip2026!" };
   };
 
   const logout = () => {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(TOKEN_KEY);
     } catch (e) {
       // ignore
     }

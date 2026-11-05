@@ -85,6 +85,8 @@ export function EditorView({
   const [zoom, setZoom] = useState(1.0);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
 
+  const currentFlyer = flyers.find((f) => f.id === selectedFlyerId) || flyers[0];
+
   // Keyboard shortcut for saving (Ctrl/Cmd + S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -163,7 +165,7 @@ export function EditorView({
           </Button>
 
           <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-            <Link to="/preview">
+            <Link to="/preview" search={{ flyerId: selectedFlyerId } as any}>
               <Eye className="h-3.5 w-3.5 text-primary" />
               <span>Preview</span>
             </Link>
