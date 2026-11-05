@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Eye, EyeOff, KeyRound, Loader2, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -45,18 +45,15 @@ export function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      {/* Background radial gradient decoration */}
-      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40 dark:opacity-20 pointer-events-none" />
-
-      <Card className="relative w-full max-w-md shadow-xl border bg-card/95 backdrop-blur">
+    <div className="relative min-h-screen flex items-center justify-center p-4 bg-muted/20">
+      <Card className="relative w-full max-w-md shadow-lg border bg-card">
         <CardHeader className="space-y-2 text-center pb-6">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
-            <Sparkles className="h-6 w-6" />
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-base shadow-xs">
+            F
           </div>
           <div>
             <div className="flex items-center justify-center gap-2 mb-1">
-              <CardTitle className="text-2xl font-bold tracking-tight">Flip Admin</CardTitle>
+              <CardTitle className="text-xl font-bold tracking-tight">Flip Admin</CardTitle>
               <Badge variant="secondary" className="text-[10px] uppercase font-semibold">
                 Studio
               </Badge>
@@ -64,11 +61,6 @@ export function LoginPage() {
             <CardDescription className="text-xs">
               Interactive Digital Flyer & Hotspot Management Portal
             </CardDescription>
-          </div>
-
-          <div className="inline-flex items-center gap-1.5 self-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Connected to Neon Postgres (Render API)
           </div>
         </CardHeader>
 

@@ -1,21 +1,8 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  Database,
-  ExternalLink,
-  Eye,
-  Layers,
-  MapPin,
-  Package,
-  Plus,
-  Sparkles,
-  Store,
-  Trash2,
-  Upload,
-} from "lucide-react";
+import { ArrowRight, Eye, Layers, MapPin, Trash2, Upload } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,41 +32,33 @@ export function DashboardView({
     {
       title: "Active Flyers",
       value: stats ? stats.flyers : flyers.length,
-      subtext: "Published on mobile feed",
-      icon: Layers,
-      color: "text-blue-600 bg-blue-500/10",
+      subtext: "Published on customer feed",
     },
     {
       title: "Interactive Hotspots",
       value: stats ? stats.hotspots : flyers.reduce((acc, f) => acc + (f.hotspots?.length || 0), 0),
-      subtext: "Shoppable touch targets mapped",
-      icon: Sparkles,
-      color: "text-amber-600 bg-amber-500/10",
+      subtext: "Mapped shoppable touch targets",
     },
     {
       title: "Catalog Products",
       value: stats ? stats.products : 11,
-      subtext: "Tagged with prices & deals",
-      icon: Package,
-      color: "text-emerald-600 bg-emerald-500/10",
+      subtext: "Tagged items with deals & pricing",
     },
     {
-      title: "Partner Merchants",
+      title: "Store Locations",
       value: stats ? stats.merchants : 5,
-      subtext: "Grocery, pharmacy, retail",
-      icon: Store,
-      color: "text-purple-600 bg-purple-500/10",
+      subtext: "Franchise branches configured",
     },
   ];
 
   return (
     <div className="space-y-6 p-6">
-      {/* Welcome Banner */}
+      {/* Header Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Interactive Flyer Studio</h1>
+          <h1 className="text-xl font-bold tracking-tight">Dashboard Overview</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Manage digital store circulars, map shoppable hotspots, and publish directly to Neon Postgres.
+            Overview of active circulars, shoppable hotspots, and franchise locations.
           </p>
         </div>
 
@@ -88,16 +67,15 @@ export function DashboardView({
             variant="outline"
             size="sm"
             onClick={() => onSelectView("templates")}
-            className="h-8 text-xs gap-1.5"
+            className="h-8 text-xs font-medium"
           >
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
             Browse Templates
           </Button>
 
           <Button
             size="sm"
             onClick={onOpenUpload}
-            className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground shadow-sm"
+            className="h-8 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs"
           >
             <Upload className="h-3.5 w-3.5" />
             Upload Flyer
@@ -110,29 +88,25 @@ export function DashboardView({
         {loading
           ? Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardHeader className="pb-2">
                   <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-8 w-8 rounded-lg" />
                 </CardHeader>
                 <CardContent>
-                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-7 w-16 mb-2" />
                   <Skeleton className="h-3 w-32" />
                 </CardContent>
               </Card>
             ))
           : statCards.map((card) => (
-              <Card key={card.title} className="shadow-xs hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground">
+              <Card key={card.title} className="shadow-xs border">
+                <CardHeader className="pb-2 space-y-0">
+                  <CardTitle className="text-xs font-medium text-muted-foreground">
                     {card.title}
                   </CardTitle>
-                  <div className={`p-2 rounded-lg ${card.color}`}>
-                    <card.icon className="h-4 w-4" />
-                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{card.value}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1">{card.subtext}</p>
+                  <div className="text-2xl font-bold tracking-tight">{card.value}</div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{card.subtext}</p>
                 </CardContent>
               </Card>
             ))}
@@ -142,7 +116,7 @@ export function DashboardView({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold tracking-tight">Active Circulars & Flyers</h2>
+            <h2 className="text-sm font-semibold tracking-tight">Active Circulars & Flyers</h2>
             <p className="text-xs text-muted-foreground">
               Select any flyer to edit hotspots in the studio or preview shopper interaction.
             </p>
@@ -151,7 +125,7 @@ export function DashboardView({
             variant="ghost"
             size="sm"
             onClick={() => onSelectView("editor")}
-            className="text-xs text-primary gap-1"
+            className="text-xs text-primary gap-1 font-medium"
           >
             Open Studio <ArrowRight className="h-3.5 w-3.5" />
           </Button>
@@ -171,8 +145,7 @@ export function DashboardView({
           </div>
         ) : flyers.length === 0 ? (
           <Card className="p-12 text-center border-dashed">
-            <Layers className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <h3 className="font-semibold text-sm">No flyers found</h3>
+            <h3 className="font-semibold text-sm">No circulars published</h3>
             <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
               Get started by uploading your first digital circular or creating one from a pre-made template.
             </p>
@@ -184,9 +157,9 @@ export function DashboardView({
                 variant="outline"
                 size="sm"
                 onClick={() => onSelectView("templates")}
-                className="gap-1.5 text-xs"
+                className="text-xs"
               >
-                <Sparkles className="h-3.5 w-3.5" /> Use Template
+                Use Template
               </Button>
             </div>
           </Card>
@@ -242,7 +215,7 @@ export function DashboardView({
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                        <MapPin className="h-3 w-3 text-primary shrink-0" />
+                        <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
                         <span className="truncate font-medium">
                           {flyer.storeLocation?.name || "Chain-wide (All Stores)"}
                         </span>
@@ -257,7 +230,7 @@ export function DashboardView({
                     <Button
                       size="sm"
                       onClick={() => onSelectFlyerToEdit(flyer.id)}
-                      className="h-8 flex-1 text-xs font-medium gap-1.5 bg-primary text-primary-foreground"
+                      className="h-8 flex-1 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground"
                     >
                       <Layers className="h-3.5 w-3.5" />
                       Edit Hotspots
@@ -286,30 +259,6 @@ export function DashboardView({
           </div>
         )}
       </div>
-
-      {/* Quick Tips Callout */}
-      <Card className="bg-gradient-to-r from-primary/5 via-primary/10 to-transparent border-primary/20">
-        <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h4 className="font-semibold text-sm flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Pro Tip: Standard Normalized Coordinates
-            </h4>
-            <p className="text-xs text-muted-foreground max-w-xl">
-              All hotspots drawn in the interactive editor automatically use normalized 0..1 bounding boxes.
-              This guarantees that flyers scale with millimeter precision across any iPhone, Android, or tablet screen.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onSelectView("templates")}
-            className="shrink-0 text-xs gap-1.5"
-          >
-            Explore Templates <ArrowRight className="h-3 w-3" />
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

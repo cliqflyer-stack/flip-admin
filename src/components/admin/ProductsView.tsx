@@ -1,15 +1,5 @@
 import React, { useState } from "react";
-import {
-  Edit2,
-  Filter,
-  Loader2,
-  Package,
-  Plus,
-  Search,
-  Store,
-  Tag,
-  Trash2,
-} from "lucide-react";
+import { Check, ChevronsUpDown, Edit2, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,58 +14,79 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ProductDialog } from "./ProductDialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   deleteProduct,
   resolveImageUrl,
   type ApiProduct,
   type Merchant,
 } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 interface ProductsViewProps {
   products: ApiProduct[];
   merchants: Merchant[];
-  onProductCreated: (product: ApiProduct) => void;
-  onProductUpdated?: (product: ApiProduct) => void;
+  onNavigateToAddProduct: () => void;
+  onNavigateToEditProduct: (productId: string) => void;
   onProductDeleted?: (id: string) => void;
   loading: boolean;
 }
 
+const PAGE_SIZE = 20;
+
 export function ProductsView({
   products,
   merchants,
-  onProductCreated,
-  onProductUpdated,
+  onNavigateToAddProduct,
+  onNavigateToEditProduct,
   onProductDeleted,
   loading,
 }: ProductsViewProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [productToEdit, setProductToEdit] = useState<ApiProduct | null>(null);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const categories = ["all", ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
+  // Extract unique categories from catalog products
+  const uniqueCategories = Array.from(
+    new Set(products.map((p) => p.category).filter(Boolean))
+  );
 
   const filtered = products.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.brand.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase()) ||
       (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()));
     const matchesCat = categoryFilter === "all" || p.category === categoryFilter;
     return matchesSearch && matchesCat;
   });
 
-  const handleOpenCreate = () => {
-    setProductToEdit(null);
-    setDialogOpen(true);
-  };
-
-  const handleOpenEdit = (product: ApiProduct) => {
-    setProductToEdit(product);
-    setDialogOpen(true);
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = (validPage - 1) * PAGE_SIZE;
+  const paginatedProducts = filtered.slice(startIndex, startIndex + PAGE_SIZE);
 
   const handleDelete = async (product: ApiProduct) => {
     if (!window.confirm(`Are you sure you want to delete "${product.name}" from catalog?`)) {
@@ -96,33 +107,25 @@ export function ProductsView({
     }
   };
 
-  const handleSaved = (product: ApiProduct, isEdit: boolean) => {
-    if (isEdit) {
-      if (onProductUpdated) onProductUpdated(product);
-    } else {
-      onProductCreated(product);
-    }
-  };
-
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
+      {/* Header Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Product Catalog</h1>
+            <h1 className="text-xl font-bold tracking-tight">Product Catalog</h1>
             <Badge variant="secondary" className="text-xs font-semibold">
-              {products.length} Items in DB
+              {products.length} Products
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Add and manage retail products with images, prices, discounts, and brand mapping.
+            Manage catalog items, retail pricing, discounts, and brand mapping for circular hotspots.
           </p>
         </div>
 
         <Button
           size="sm"
-          onClick={handleOpenCreate}
+          onClick={onNavigateToAddProduct}
           className="h-8 gap-1.5 text-xs font-semibold bg-primary text-primary-foreground shadow-xs"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -131,149 +134,185 @@ export function ProductsView({
       </div>
 
       {/* Filter and Search Bar */}
-      <Card>
+      <Card className="border shadow-xs">
         <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search by product name, brand, category, SKU..."
+              placeholder="Search product name, brand, or SKU..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="h-8 pl-8 text-xs"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 text-xs">
-            <span className="text-muted-foreground text-[11px] font-semibold mr-1 shrink-0">Category:</span>
-            {categories.slice(0, 7).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize whitespace-nowrap transition-colors ${
-                  categoryFilter === cat
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-muted text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Search and Select Category Combobox */}
+            <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  size="sm"
+                  aria-expanded={categoryOpen}
+                  className="h-8 text-xs justify-between w-48 font-normal"
+                >
+                  <span className="truncate">
+                    {categoryFilter === "all" ? "All Categories" : categoryFilter}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0" align="end">
+                <Command>
+                  <CommandInput placeholder="Search category..." className="h-8 text-xs" />
+                  <CommandList>
+                    <CommandEmpty>No category found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all"
+                        onSelect={() => {
+                          setCategoryFilter("all");
+                          setCategoryOpen(false);
+                          setCurrentPage(1);
+                        }}
+                        className="text-xs cursor-pointer flex items-center justify-between"
+                      >
+                        <span>All Categories</span>
+                        <Check
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            categoryFilter === "all" ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </CommandItem>
+                      {uniqueCategories.map((cat) => (
+                        <CommandItem
+                          key={cat}
+                          value={cat}
+                          onSelect={() => {
+                            setCategoryFilter(cat);
+                            setCategoryOpen(false);
+                            setCurrentPage(1);
+                          }}
+                          className="text-xs cursor-pointer flex items-center justify-between"
+                        >
+                          <span className="truncate">{cat}</span>
+                          <Check
+                            className={cn(
+                              "h-3.5 w-3.5",
+                              categoryFilter === cat ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>
 
-      {/* Products Table */}
-      <Card className="overflow-hidden shadow-xs border">
+      {/* Products Table Card */}
+      <Card className="border shadow-xs overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="w-16">Item</TableHead>
-              <TableHead>Product & Brand</TableHead>
-              <TableHead>Category & Unit</TableHead>
-              <TableHead>Regular Price</TableHead>
-              <TableHead>Offer Deal Price</TableHead>
-              <TableHead>Savings</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="bg-muted/30 text-xs">
+              <TableHead className="w-14">Image</TableHead>
+              <TableHead>Product Name</TableHead>
+              <TableHead>Brand</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Unit</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead className="text-right">Regular</TableHead>
+              <TableHead className="text-right">Offer Price</TableHead>
+              <TableHead className="w-24 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i} className="animate-pulse">
+                  <TableCell colSpan={9} className="h-12 bg-muted/10" />
+                </TableRow>
+              ))
+            ) : paginatedProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-xs text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-primary" />
-                  Loading products from Neon DB...
-                </TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-xs text-muted-foreground">
-                  No products matched your search.
+                <TableCell colSpan={9} className="h-32 text-center text-xs text-muted-foreground">
+                  No products found matching your search criteria.
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((prod) => {
-                const reg = Number(prod.regularPrice || 0);
-                const off = Number(prod.offerPrice || 0);
-                const savings = reg > off ? ((reg - off) / reg) * 100 : 0;
+              paginatedProducts.map((p) => {
+                const reg = parseFloat(String(p.regularPrice));
+                const off = parseFloat(String(p.offerPrice));
+                const hasDiscount = !isNaN(reg) && !isNaN(off) && reg > off && off > 0;
+                const savingsPct = hasDiscount ? Math.round(((reg - off) / reg) * 100) : 0;
 
                 return (
-                  <TableRow key={prod.id} className="text-xs hover:bg-muted/30">
-                    <TableCell>
-                      <img
-                        src={resolveImageUrl(prod.imageUrl)}
-                        alt={prod.name}
-                        className="h-10 w-10 rounded object-cover border bg-background"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = "/uploads/products/coca-cola.jpg";
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="font-semibold text-foreground flex items-center gap-1.5">
-                        {prod.name}
-                        {prod.sku && (
-                          <span className="text-[10px] font-mono text-muted-foreground border px-1 rounded">
-                            {prod.sku}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                        <span>{prod.brand || "General Brand"}</span>
-                        {prod.merchant && (
-                          <>
-                            <span>•</span>
-                            <span className="font-medium">{prod.merchant.name}</span>
-                          </>
+                  <TableRow key={p.id} className="text-xs group hover:bg-muted/40 transition-colors">
+                    <TableCell className="p-2">
+                      <div className="h-9 w-9 rounded border bg-muted/30 flex items-center justify-center overflow-hidden">
+                        {p.imageUrl ? (
+                          <img
+                            src={resolveImageUrl(p.imageUrl)}
+                            alt={p.name}
+                            className="h-full w-full object-contain p-0.5"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">No img</span>
                         )}
                       </div>
                     </TableCell>
+                    <TableCell className="font-semibold text-foreground max-w-[200px] truncate">
+                      {p.name}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{p.brand}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px] font-semibold">
-                          {prod.category}
-                        </Badge>
-                        <span className="text-[11px] text-muted-foreground">({prod.unit || "each"})</span>
-                      </div>
+                      <Badge variant="outline" className="text-[10px] font-normal">
+                        {p.category}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground line-through font-mono">
-                      ${reg.toFixed(2)}
+                    <TableCell className="text-muted-foreground">{p.unit || "—"}</TableCell>
+                    <TableCell className="font-mono text-[11px] text-muted-foreground">
+                      {p.sku || "—"}
                     </TableCell>
-                    <TableCell className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                      ${off.toFixed(2)}
+                    <TableCell className="text-right text-muted-foreground">
+                      ${Number(p.regularPrice).toFixed(2)}
                     </TableCell>
-                    <TableCell>
-                      {savings > 0 ? (
-                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 font-bold border border-emerald-500/20">
-                          {Math.round(savings)}% OFF
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
+                    <TableCell className="text-right font-semibold text-emerald-600">
+                      ${Number(p.offerPrice).toFixed(2)}
+                      {hasDiscount && (
+                        <span className="ml-1 text-[10px] bg-emerald-500/10 text-emerald-600 px-1 py-0.5 rounded font-bold">
+                          {savingsPct}% off
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEdit(prod)}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                          title="Edit Product"
+                          size="icon"
+                          onClick={() => onNavigateToEditProduct(p.id)}
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          title="Edit product"
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          disabled={deletingId === prod.id}
-                          onClick={() => handleDelete(prod)}
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Delete Product"
+                          size="icon"
+                          onClick={() => handleDelete(p)}
+                          disabled={deletingId === p.id}
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          title="Delete product"
                         >
-                          {deletingId === prod.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </TableCell>
@@ -283,16 +322,76 @@ export function ProductsView({
             )}
           </TableBody>
         </Table>
-      </Card>
 
-      {/* Product Add/Edit Dialog */}
-      <ProductDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        productToEdit={productToEdit}
-        merchants={merchants}
-        onSave={handleSaved}
-      />
+        {/* Standard shadcn Pagination Footer */}
+        {filtered.length > 0 && (
+          <div className="p-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-muted/10">
+            <span className="text-muted-foreground">
+              Showing{" "}
+              <strong>
+                {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, filtered.length)}
+              </strong>{" "}
+              of <strong>{filtered.length}</strong> products
+            </span>
+
+            {totalPages > 1 && (
+              <Pagination className="mx-0 w-auto justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className={cn(
+                        "h-8 text-xs cursor-pointer",
+                        validPage === 1 ? "pointer-events-none opacity-50" : ""
+                      )}
+                    />
+                  </PaginationItem>
+
+                  {Array.from({ length: totalPages }).map((_, i) => {
+                    const pageNum = i + 1;
+                    // Show first page, last page, and pages around current page
+                    if (
+                      pageNum === 1 ||
+                      pageNum === totalPages ||
+                      Math.abs(pageNum - validPage) <= 1
+                    ) {
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            isActive={validPage === pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="h-8 w-8 text-xs cursor-pointer"
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    }
+                    if (pageNum === validPage - 2 || pageNum === validPage + 2) {
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationEllipsis className="h-8 w-8" />
+                        </PaginationItem>
+                      );
+                    }
+                    return null;
+                  })}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className={cn(
+                        "h-8 text-xs cursor-pointer",
+                        validPage === totalPages ? "pointer-events-none opacity-50" : ""
+                      )}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

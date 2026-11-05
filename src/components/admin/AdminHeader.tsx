@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Eye, Plus, Sparkles, Upload } from "lucide-react";
+import { Eye, Plus, Upload } from "lucide-react";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -13,7 +13,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "./ThemeToggle";
 import type { AdminView } from "./AdminSidebar";
 
 interface AdminHeaderProps {
@@ -26,10 +26,15 @@ interface AdminHeaderProps {
 const VIEW_NAMES: Record<AdminView, string> = {
   dashboard: "Dashboard Overview",
   editor: "Interactive Flyer Studio",
+  "upload-flyer": "Upload Circular",
   templates: "Templates Library",
   stores: "Franchises & Store Locations",
+  "add-store": "Add Store Location",
+  "edit-store": "Edit Store Location",
   products: "Product Catalog",
-  settings: "Settings & API",
+  "add-product": "Add Product",
+  "edit-product": "Edit Product",
+  settings: "Settings",
 };
 
 export function AdminHeader({
@@ -57,7 +62,7 @@ export function AdminHeader({
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage className="font-semibold text-foreground">
-                {VIEW_NAMES[currentView]}
+                {VIEW_NAMES[currentView] || "Portal"}
               </BreadcrumbPage>
             </BreadcrumbItem>
             {currentView === "editor" && selectedFlyerTitle && (
@@ -74,18 +79,14 @@ export function AdminHeader({
         </Breadcrumb>
       </div>
 
-      <div className="flex items-center gap-2.5">
-        {/* Neon Postgres live badge */}
-        <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Neon DB Live</span>
-        </div>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
 
-        {currentView !== "editor" && (
+        {currentView !== "editor" && currentView !== "upload-flyer" && (
           <Button
             size="sm"
             onClick={onOpenUpload}
-            className="h-8 gap-1.5 text-xs font-medium bg-primary text-primary-foreground shadow-sm"
+            className="h-8 gap-1.5 text-xs font-medium bg-primary text-primary-foreground shadow-xs"
           >
             <Upload className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Upload Flyer</span>

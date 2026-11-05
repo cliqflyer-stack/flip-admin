@@ -1,23 +1,21 @@
 import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  CheckCircle2,
-  Database,
-  ExternalLink,
+  ArrowLeft,
+  ChevronRight,
   Eye,
   Hand,
+  Layers,
   Loader2,
-  Maximize2,
+  MapPin,
   MousePointer,
   Plus,
-  RotateCcw,
   Save,
   Search,
-  Sparkles,
+  Store,
   Tag,
   Trash2,
   Upload,
-  X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -26,13 +24,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   resolveImageUrl,
   type ApiFlyer,
   type ApiProduct,
   type Merchant,
+  type StoreLocation,
 } from "@/lib/api-client";
 import { ProductDialog } from "./ProductDialog";
 import type { Hotspot, HotspotRect } from "@/lib/flyer-storage";
@@ -46,6 +45,7 @@ interface EditorViewProps {
   onSelectFlyer: (id: string) => void;
   catalogProducts: ApiProduct[];
   merchants?: Merchant[];
+  storeLocations?: StoreLocation[];
   onProductCreated?: (product: ApiProduct) => void;
   hotspots: Hotspot[];
   selectedHotspotId: string | null;
@@ -66,6 +66,7 @@ export function EditorView({
   onSelectFlyer,
   catalogProducts,
   merchants = [],
+  storeLocations = [],
   onProductCreated,
   hotspots,
   selectedHotspotId,
@@ -79,13 +80,27 @@ export function EditorView({
   imageUrl,
   imgSize,
 }: EditorViewProps) {
+  // Navigation states within Studio
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [storeSearch, setStoreSearch] = useState("");
+
+  // Editor states
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [drawProduct, setDrawProduct] = useState<ApiProduct | null>(null);
   const [zoom, setZoom] = useState(1.0);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
 
-  const currentFlyer = flyers.find((f) => f.id === selectedFlyerId) || flyers[0];
+  const currentFlyer = flyers.find((f) => f.id === selectedFlyerId);
+
+  // If a flyerId is selected, automatically set the store context
+  useEffect(() => {
+    if (currentFlyer?.storeLocationId) {
+      setSelectedStoreId(currentFlyer.storeLocationId);
+    } else if (currentFlyer?.merchantId) {
+      setSelectedStoreId(`merchant_${currentFlyer.merchantId}`);
+    }
+  }, [currentFlyer]);
 
   // Keyboard shortcut for saving (Ctrl/Cmd + S)
   useEffect(() => {
@@ -100,7 +115,10 @@ export function EditorView({
   }, [onSaveToDatabase]);
 
   // Extract unique categories from catalog
-  const categories = ["all", ...Array.from(new Set(catalogProducts.map((p) => p.category).filter(Boolean)))];
+  const categories = [
+    "all",
+    ...Array.from(new Set(catalogProducts.map((p) => p.category).filter(Boolean))),
+  ];
 
   const filteredProducts = catalogProducts.filter((p) => {
     const matchesSearch =
@@ -115,41 +133,252 @@ export function EditorView({
     ? catalogProducts.find((p) => p.id === selectedHotspot.productId)
     : null;
 
+  // --- STEP 1: STORE / FRANCHISE SELECTION (when no flyer is actively opened) ---
+  if (!selectedFlyerId && !selectedStoreId) {
+    const filteredStores = storeLocations.filter((s) => {
+      const merch = merchants.find((m) => m.id === s.merchantId);
+      return (
+        s.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
+        s.city.toLowerCase().includes(storeSearch.toLowerCase()) ||
+        (merch && merch.name.toLowerCase().includes(storeSearch.toLowerCase()))
+      );
+    });
+
+    return (
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Interactive Flyer Studio</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Select a store location or franchise brand to view and edit its circular hotspots.
+            </p>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search stores or cities..."
+              value={storeSearch}
+              onChange={(e) => setStoreSearch(e.target.value)}
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Chain-wide / Universal brands */}
+          {merchants.map((merch) => {
+            const merchFlyers = flyers.filter((f) => f.merchantId === merch.id);
+            const merchLocations = storeLocations.filter((l) => l.merchantId === merch.id);
+            return (
+              <Card
+                key={merch.id}
+                onClick={() => setSelectedStoreId(`merchant_${merch.id}`)}
+                className="cursor-pointer hover:border-primary transition-all p-4 flex flex-col justify-between border shadow-xs"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold"
+                      style={{ backgroundColor: merch.logoBg, color: merch.logoColor }}
+                    >
+                      {merch.initial}
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {merchFlyers.length} Circular{merchFlyers.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                  <h3 className="font-semibold text-sm text-foreground">{merch.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Chain-wide flyers & {merchLocations.length} store branch{merchLocations.length === 1 ? "" : "es"}
+                  </p>
+                </div>
+                <div className="mt-4 pt-2 border-t flex items-center justify-between text-xs text-primary font-medium">
+                  <span>Browse Circulars</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </Card>
+            );
+          })}
+
+          {/* Individual store locations */}
+          {filteredStores.map((loc) => {
+            const merch = merchants.find((m) => m.id === loc.merchantId);
+            const storeFlyers = flyers.filter((f) => f.storeLocationId === loc.id);
+            return (
+              <Card
+                key={loc.id}
+                onClick={() => setSelectedStoreId(loc.id)}
+                className="cursor-pointer hover:border-primary transition-all p-4 flex flex-col justify-between border shadow-xs"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        {loc.city}, {loc.province}
+                      </span>
+                    </div>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {storeFlyers.length} Store Flyer{storeFlyers.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                  <h3 className="font-semibold text-sm text-foreground">{loc.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{loc.address}</p>
+                </div>
+                <div className="mt-4 pt-2 border-t flex items-center justify-between text-xs text-primary font-medium">
+                  <span>Open Store Studio</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // --- STEP 2: STORE CIRCULARS VIEW (when store is picked, but flyer not opened yet) ---
+  if (!selectedFlyerId && selectedStoreId) {
+    const isBrandLevel = selectedStoreId.startsWith("merchant_");
+    const activeMerchantId = isBrandLevel ? selectedStoreId.replace("merchant_", "") : null;
+    const activeLocation = !isBrandLevel ? storeLocations.find((l) => l.id === selectedStoreId) : null;
+    const activeMerchant = isBrandLevel
+      ? merchants.find((m) => m.id === activeMerchantId)
+      : merchants.find((m) => m.id === activeLocation?.merchantId);
+
+    const storeFlyers = flyers.filter((f) => {
+      if (isBrandLevel) {
+        return f.merchantId === activeMerchantId;
+      }
+      return f.storeLocationId === selectedStoreId || (f.merchantId === activeLocation?.merchantId && !f.storeLocationId);
+    });
+
+    return (
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedStoreId(null)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight">
+                  {activeLocation ? activeLocation.name : activeMerchant?.name}
+                </h1>
+                <Badge variant="outline" className="text-xs">
+                  {storeFlyers.length} Circulars
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {activeLocation
+                  ? `${activeLocation.address}, ${activeLocation.city} · Select a circular to edit hotspots`
+                  : "Chain-wide flyers · Select a circular to edit hotspots"}
+              </p>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={onOpenUpload}
+            className="h-8 gap-1.5 text-xs font-semibold bg-primary text-primary-foreground shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Flyer
+          </Button>
+        </div>
+
+        {storeFlyers.length === 0 ? (
+          <Card className="p-12 text-center border-dashed">
+            <h3 className="font-semibold text-sm">No circulars found for this store</h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+              Upload a digital flyer circular for this location to start mapping shoppable product hotspots.
+            </p>
+            <Button size="sm" onClick={onOpenUpload} className="mt-4 gap-1.5 text-xs">
+              <Upload className="h-3.5 w-3.5" /> Upload Flyer
+            </Button>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {storeFlyers.map((flyer) => (
+              <Card
+                key={flyer.id}
+                onClick={() => onSelectFlyer(flyer.id)}
+                className="cursor-pointer hover:border-primary hover:shadow-md transition-all overflow-hidden flex flex-col justify-between border shadow-xs"
+              >
+                <div>
+                  <div className="relative aspect-[16/10] bg-muted/40 overflow-hidden border-b">
+                    <img
+                      src={resolveImageUrl(flyer.flyerImageUrl)}
+                      alt={flyer.title}
+                      className="h-full w-full object-cover object-top"
+                    />
+                    <div className="absolute top-2 left-2 flex items-center gap-1">
+                      <Badge variant="default" className="text-[10px] uppercase font-bold">
+                        {flyer.status}
+                      </Badge>
+                      {flyer.badgeText && (
+                        <Badge variant="outline" className="text-[10px] bg-background/90 font-semibold">
+                          {flyer.badgeText}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white">
+                      {flyer.hotspots?.length || 0} hotspots
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="font-semibold text-sm text-foreground">{flyer.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {flyer.subtitle || "Weekly digital circular"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 pt-2 border-t bg-muted/20 flex items-center justify-between text-xs text-primary font-medium">
+                  <span>Open Hotspot Editor</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- STEP 3: CANVAS HOTSPOT EDITOR (Flyer is actively opened) ---
   return (
     <div className="flex flex-col flex-1 h-[calc(100vh-3.5rem)] overflow-hidden">
       {/* Studio Header Sub-bar */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 text-xs">
-        <div className="flex items-center gap-2 overflow-x-auto py-1">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-            Select Flyer:
-          </span>
-          {flyers.map((flyer) => (
-            <button
-              key={flyer.id}
-              onClick={() => onSelectFlyer(flyer.id)}
-              className={cn(
-                "rounded-md px-3 py-1 text-xs font-medium transition-colors shrink-0",
-                selectedFlyerId === flyer.id
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-muted/50 text-foreground hover:bg-muted border border-border/50"
-              )}
-            >
-              {flyer.title} ({flyer.hotspots?.length || 0})
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
-            onClick={onOpenUpload}
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => onSelectFlyer("")}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
           >
-            <Plus className="h-3 w-3 mr-1" /> New Flyer
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Store Circulars</span>
           </Button>
+
+          <Separator orientation="vertical" className="h-4" />
+
+          <div className="flex items-center gap-1.5 truncate max-w-sm">
+            <span className="font-semibold text-foreground truncate">{currentFlyer?.title}</span>
+            <span className="text-muted-foreground">({hotspots.length} hotspots)</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {imgSize.width > 0 && (
-            <span className="hidden lg:inline text-muted-foreground">
+            <span className="hidden lg:inline text-muted-foreground text-[11px] font-mono">
               {imgSize.width} × {imgSize.height} px
             </span>
           )}
@@ -158,7 +387,7 @@ export function EditorView({
             size="sm"
             onClick={onSaveToDatabase}
             disabled={isSaving}
-            className="h-8 gap-1.5 text-xs bg-primary text-primary-foreground font-medium shadow-xs"
+            className="h-8 gap-1.5 text-xs bg-primary text-primary-foreground font-semibold shadow-xs"
           >
             {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             <span>Save Hotspots (⌘S)</span>
@@ -201,24 +430,24 @@ export function EditorView({
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search products & deals..."
+                placeholder="Search products or brands..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 pl-8 text-xs"
+                className="h-8 pl-8 text-xs bg-muted/30"
               />
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
-              {categories.slice(0, 5).map((cat) => (
+            {/* Category pills */}
+            <div className="flex gap-1 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+              {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "rounded-full px-2 py-0.5 capitalize whitespace-nowrap transition-colors",
+                    "rounded-md px-2 py-0.5 capitalize transition-colors font-medium shrink-0",
                     selectedCategory === cat
                       ? "bg-primary text-primary-foreground font-semibold"
-                      : "bg-muted text-muted-foreground hover:bg-accent"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
                   )}
                 >
                   {cat}
@@ -227,247 +456,186 @@ export function EditorView({
             </div>
           </div>
 
-          {/* Active drawing hint */}
-          {drawProduct ? (
-            <div className="bg-amber-500/10 border-b border-amber-500/20 p-3 text-xs text-amber-900 dark:text-amber-200">
-              <div className="flex items-center justify-between font-semibold">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                  Draw Mode Active
+          {/* Active Placement Tool Banner */}
+          <div className="p-2.5 bg-muted/40 border-b text-xs flex items-center justify-between">
+            <div className="flex items-center gap-1.5 truncate">
+              {drawProduct ? (
+                <>
+                  <Tag className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="truncate font-semibold text-foreground">
+                    Drawing: {drawProduct.name}
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted-foreground text-[11px]">
+                  Select a product below to draw a hotspot:
                 </span>
-                <button
-                  onClick={() => setDrawProduct(null)}
-                  className="text-amber-700 dark:text-amber-300 hover:opacity-80"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+              )}
+            </div>
+            {drawProduct && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDrawProduct(null)}
+                className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {/* Products List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+            {filteredProducts.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                No products found matching your search.
               </div>
-              <p className="mt-1 text-[11px] leading-relaxed">
-                Click & drag a rectangle over <strong>{drawProduct.name}</strong> on the flyer to map it.
-              </p>
-            </div>
-          ) : (
-            <div className="p-2.5 bg-muted/40 border-b text-[11px] text-muted-foreground flex items-center gap-1.5">
-              <MousePointer className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span>Select a product below, then drag a rectangle over the flyer.</span>
-            </div>
-          )}
-
-          {/* Product Items List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-border/50">
-            {filteredProducts.map((product) => {
-              const isSelectedForDraw = drawProduct?.id === product.id;
-              const isMapped = hotspots.some((h) => h.productId === product.id);
-
-              return (
-                <div
-                  key={product.id}
-                  onClick={() => setDrawProduct(isSelectedForDraw ? null : product)}
-                  className={cn(
-                    "flex items-center gap-3 p-2.5 cursor-pointer transition-colors hover:bg-muted/50",
-                    isSelectedForDraw && "bg-primary/10 border-l-4 border-primary",
-                    isMapped && "opacity-90"
-                  )}
-                >
-                  <img
-                    src={resolveImageUrl(product.imageUrl)}
-                    alt={product.name}
-                    className="h-10 w-10 shrink-0 rounded object-cover border bg-background"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="truncate text-xs font-semibold">{product.name}</p>
-                      {isMapped && (
-                        <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">
-                          <CheckCircle2 className="h-3 w-3" /> Mapped
-                        </span>
+            ) : (
+              filteredProducts.map((p) => {
+                const isDrawing = drawProduct?.id === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      setDrawProduct(p);
+                      toast.info(`Ready to map "${p.name}". Click & drag on the flyer canvas.`);
+                    }}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg border p-2 cursor-pointer transition-all text-xs",
+                      isDrawing
+                        ? "border-primary bg-primary/10 ring-2 ring-primary/20 shadow-xs"
+                        : "hover:bg-muted/40 bg-card border-border/60"
+                    )}
+                  >
+                    <div className="h-10 w-10 shrink-0 rounded bg-muted/30 border flex items-center justify-center overflow-hidden">
+                      {p.imageUrl ? (
+                        <img
+                          src={resolveImageUrl(p.imageUrl)}
+                          alt={p.name}
+                          className="h-full w-full object-contain p-0.5"
+                        />
+                      ) : (
+                        <Tag className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
-                    <p className="truncate text-[11px] text-muted-foreground">{product.brand}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                        ${Number(product.offerPrice).toFixed(2)}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground line-through">
-                        ${Number(product.regularPrice).toFixed(2)}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground truncate">{p.name}</p>
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                        <span className="font-bold text-emerald-600">${Number(p.offerPrice).toFixed(2)}</span>
+                        {p.unit && <span>{p.unit}</span>}
+                      </div>
                     </div>
+                    {isDrawing && (
+                      <Badge variant="default" className="text-[9px] h-5 px-1.5 shrink-0 bg-primary">
+                        Ready
+                      </Badge>
+                    )}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </aside>
 
-        {/* Center Column: Smooth Scrolling Canvas Studio with Zoom Controls */}
-        <main className="relative flex-1 flex flex-col bg-muted/20 overflow-hidden">
-          {/* Floating Zoom & Studio Control Toolbar */}
-          <div className="absolute top-4 z-20 flex items-center gap-1.5 rounded-full border bg-card/95 px-3 py-1 shadow-md backdrop-blur">
+        {/* Center Canvas Viewport */}
+        <main className="flex-1 flex flex-col bg-muted/20 relative overflow-hidden">
+          {/* Canvas Floating Zoom Toolbar */}
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-lg border bg-background/95 p-1 shadow-md backdrop-blur">
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full"
-              onClick={() => setZoom((z) => Math.max(0.5, parseFloat((z - 0.15).toFixed(2))))}
+              onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(2))))}
+              className="h-7 w-7 text-xs"
               title="Zoom Out"
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </Button>
-
-            <span className="min-w-[44px] text-center text-xs font-semibold text-foreground">
+            <span className="min-w-[44px] text-center font-mono text-[11px] font-semibold">
               {Math.round(zoom * 100)}%
             </span>
-
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full"
-              onClick={() => setZoom((z) => Math.min(2.0, parseFloat((z + 0.15).toFixed(2))))}
+              onClick={() => setZoom((z) => Math.min(2.0, Number((z + 0.1).toFixed(2))))}
+              className="h-7 w-7 text-xs"
               title="Zoom In"
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </Button>
-
-            <Separator orientation="vertical" className="h-4 mx-1" />
-
+            <Separator orientation="vertical" className="h-4 mx-0.5" />
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs font-medium"
               onClick={() => setZoom(1.0)}
+              className="h-7 px-2 text-[11px] font-medium"
             >
-              <RotateCcw className="h-3 w-3 mr-1" /> 100%
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs font-medium"
-              onClick={() => setZoom(0.85)}
-            >
-              <Maximize2 className="h-3 w-3 mr-1" /> Fit
+              Reset
             </Button>
           </div>
 
-          {/* Dedicated Natural Scrolling Viewport (Allows unconstrained top-to-bottom scroll) */}
-          <div className="flex-1 overflow-auto p-8 pt-16 pb-36 flex justify-center">
-            <div className="relative inline-block max-w-none">
-              <Suspense
-                fallback={
-                  <div className="flex flex-col items-center justify-center p-20 gap-3">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="text-xs text-muted-foreground">Loading flyer canvas...</span>
-                  </div>
-                }
-              >
-                <FlyerEditorCanvas
-                  imageUrl={imageUrl}
-                  imageWidth={imgSize.width}
-                  imageHeight={imgSize.height}
-                  hotspots={hotspots}
-                  selectedId={selectedHotspotId}
-                  drawProduct={drawProduct}
-                  catalogProducts={catalogProducts}
-                  zoom={zoom}
-                  onSelect={onSelectHotspot}
-                  onCreate={onCreateHotspot}
-                  onUpdate={onUpdateHotspot}
-                />
-              </Suspense>
-            </div>
+          {/* Interactive Flyer Canvas Container */}
+          <div className="flex-1 overflow-auto p-6 flex justify-center items-start">
+            <Suspense
+              fallback={
+                <div className="flex h-96 items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span>Loading circular canvas...</span>
+                </div>
+              }
+            >
+              <FlyerEditorCanvas
+                imageUrl={imageUrl}
+                hotspots={hotspots}
+                selectedHotspotId={selectedHotspotId}
+                onSelectHotspot={onSelectHotspot}
+                onCreateHotspot={onCreateHotspot}
+                onUpdateHotspot={onUpdateHotspot}
+                onDeleteHotspot={onDeleteHotspot}
+                drawProduct={drawProduct}
+                catalogProducts={catalogProducts}
+                zoom={zoom}
+              />
+            </Suspense>
           </div>
         </main>
 
         {/* Right Column: Hotspots Inspector */}
-        <aside className="flex w-72 lg:w-80 shrink-0 flex-col border-l bg-card">
+        <aside className="hidden xl:flex w-72 shrink-0 flex-col border-l bg-card">
           <div className="p-3 border-b flex items-center justify-between">
-            <div>
-              <h2 className="text-xs font-bold tracking-tight uppercase text-muted-foreground">
-                2. Mapped Hotspots
-              </h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {hotspots.length} touch target{hotspots.length === 1 ? "" : "s"} on page
-              </p>
-            </div>
+            <h2 className="text-xs font-bold tracking-tight uppercase text-muted-foreground">
+              3. Mapped Hotspots
+            </h2>
             <Badge variant="outline" className="text-[10px] font-semibold">
-              Live Neon DB
+              {hotspots.length} Total
             </Badge>
           </div>
 
-          {/* Selected Hotspot Detailed Card */}
-          {selectedHotspot && selectedProduct ? (
-            <div className="p-3 border-b bg-primary/5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-                  <Tag className="h-3.5 w-3.5" /> Selected Hotspot
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDeleteHotspot(selectedHotspot.id)}
-                  className="h-6 px-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
-                >
-                  <Trash2 className="h-3 w-3 mr-1" /> Delete
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-2.5 bg-background p-2 rounded-md border text-xs">
-                <img
-                  src={resolveImageUrl(selectedProduct.imageUrl)}
-                  alt={selectedProduct.name}
-                  className="h-9 w-9 rounded object-cover border"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold truncate">{selectedProduct.name}</p>
-                  <p className="text-[11px] text-emerald-600 font-bold">
-                    ${Number(selectedProduct.offerPrice).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5 text-[10px] text-muted-foreground">
-                <div className="bg-background/80 p-1.5 rounded border">
-                  X: {Math.round(selectedHotspot.x * 100)}% · Y: {Math.round(selectedHotspot.y * 100)}%
-                </div>
-                <div className="bg-background/80 p-1.5 rounded border">
-                  W: {Math.round(selectedHotspot.width * 100)}% · H: {Math.round(selectedHotspot.height * 100)}%
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-3 bg-muted/30 border-b text-[11px] text-muted-foreground">
-              Click any hotspot rectangle on the canvas to inspect coordinates.
-            </div>
-          )}
-
-          {/* Hotspots List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-border/50">
+          <div className="flex-1 overflow-y-auto p-2 space-y-2 text-xs">
             {hotspots.length === 0 ? (
-              <div className="p-8 text-center text-xs text-muted-foreground space-y-2">
-                <Sparkles className="h-8 w-8 text-muted-foreground/50 mx-auto" />
-                <p className="font-medium">No hotspots mapped yet</p>
-                <p className="text-[11px]">Select a product from the left catalog and drag over the flyer.</p>
+              <div className="p-8 text-center text-muted-foreground text-xs">
+                No hotspots drawn on this flyer yet. Click & drag a rectangle on the canvas to place one.
               </div>
             ) : (
-              hotspots.map((h, index) => {
+              hotspots.map((h, i) => {
                 const prod = catalogProducts.find((p) => p.id === h.productId);
-                const isSelected = h.id === selectedHotspotId;
-
+                const isSelected = selectedHotspotId === h.id;
                 return (
                   <div
                     key={h.id}
                     onClick={() => onSelectHotspot(h.id)}
                     className={cn(
-                      "flex items-center justify-between p-2.5 cursor-pointer text-xs transition-colors hover:bg-muted/50",
-                      isSelected && "bg-destructive/10 border-l-4 border-destructive font-semibold"
+                      "rounded-lg border p-2.5 transition-all cursor-pointer flex items-center justify-between gap-2",
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
+                        : "bg-muted/20 hover:bg-muted/40 border-border"
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[10px] text-muted-foreground">#{index + 1}</span>
-                        <p className="truncate font-medium">{prod?.name || "Hotspot"}</p>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {Math.round(h.width * 100)}% × {Math.round(h.height * 100)}% area
+                      <p className="font-semibold text-foreground truncate">
+                        #{i + 1} {prod?.name || "Hotspot"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                        {Math.round(h.x * 100)}%, {Math.round(h.y * 100)}%
                       </p>
                     </div>
 
@@ -478,9 +646,9 @@ export function EditorView({
                         e.stopPropagation();
                         onDeleteHotspot(h.id);
                       }}
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 );

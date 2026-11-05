@@ -39,7 +39,18 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
 
-export type AdminView = "dashboard" | "editor" | "templates" | "stores" | "products" | "settings";
+export type AdminView =
+  | "dashboard"
+  | "editor"
+  | "upload-flyer"
+  | "templates"
+  | "stores"
+  | "add-store"
+  | "edit-store"
+  | "products"
+  | "add-product"
+  | "edit-product"
+  | "settings";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -58,23 +69,30 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const { user, logout } = useAuth();
 
+  const isStoresActive = currentView === "stores" || currentView === "add-store" || currentView === "edit-store";
+  const isProductsActive = currentView === "products" || currentView === "add-product" || currentView === "edit-product";
+  const isEditorActive = currentView === "editor" || currentView === "upload-flyer";
+
   const studioNavItems = [
     {
       id: "dashboard" as AdminView,
       title: "Dashboard",
       icon: LayoutDashboard,
+      isActive: currentView === "dashboard",
       badge: undefined,
     },
     {
       id: "editor" as AdminView,
       title: "Interactive Studio",
       icon: Layers,
+      isActive: isEditorActive,
       badge: flyersCount > 0 ? `${flyersCount}` : undefined,
     },
     {
       id: "templates" as AdminView,
       title: "Templates Library",
       icon: Sparkles,
+      isActive: currentView === "templates",
       badge: "5",
     },
   ];
@@ -84,12 +102,14 @@ export function AdminSidebar({
       id: "stores" as AdminView,
       title: "Stores & Locations",
       icon: Store,
+      isActive: isStoresActive,
       badge: storeLocationsCount > 0 ? `${storeLocationsCount}` : undefined,
     },
     {
       id: "products" as AdminView,
       title: "Product Catalog",
       icon: Package,
+      isActive: isProductsActive,
       badge: productsCount > 0 ? `${productsCount}` : undefined,
     },
   ];
@@ -99,6 +119,7 @@ export function AdminSidebar({
       id: "settings" as AdminView,
       title: "Settings & API",
       icon: Settings,
+      isActive: currentView === "settings",
       badge: undefined,
     },
   ];
@@ -108,15 +129,12 @@ export function AdminSidebar({
       {/* Brand Header */}
       <SidebarHeader className="p-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Sparkles className="h-5 w-5" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-sm">
+            F
           </div>
           <div className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-sm font-bold tracking-tight">Flip Studio</span>
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="truncate">Neon Postgres</span>
-            </div>
+            <span className="truncate text-sm font-bold tracking-tight">Flip Admin</span>
+            <span className="truncate text-[11px] text-muted-foreground font-medium">Digital Circular Studio</span>
           </div>
         </div>
       </SidebarHeader>
@@ -132,7 +150,7 @@ export function AdminSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {studioNavItems.map((item) => {
-                const isActive = currentView === item.id;
+                const isActive = item.isActive;
                 return (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
@@ -164,7 +182,7 @@ export function AdminSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {inventoryNavItems.map((item) => {
-                const isActive = currentView === item.id;
+                const isActive = item.isActive;
                 return (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton

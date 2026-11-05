@@ -17,6 +17,7 @@ export interface StoreLocation {
   latitude?: number;
   longitude?: number;
   phone?: string;
+  logoUrl?: string;
   merchant?: Merchant;
   flyers?: ApiFlyer[];
 }
