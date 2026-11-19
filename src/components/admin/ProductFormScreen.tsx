@@ -8,11 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -33,8 +29,10 @@ import {
   updateProduct,
   uploadImage,
   resolveImageUrl,
+  fetchCategories,
   PRODUCT_PRESET_IMAGES,
   type ApiProduct,
+  type Category,
   type Merchant,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -73,6 +71,7 @@ export function ProductFormScreen({
   const [name, setName] = useState(product?.name || "");
   const [brand, setBrand] = useState(product?.brand || "");
   const [category, setCategory] = useState(product?.category || "Groceries");
+  const [dynamicCategories, setDynamicCategories] = useState<string[]>(COMMON_CATEGORIES);
   const [unit, setUnit] = useState(product?.unit || "Each");
   const [sku, setSku] = useState(product?.sku || "");
   const [regularPrice, setRegularPrice] = useState(product ? String(product.regularPrice) : "4.99");
@@ -85,6 +84,13 @@ export function ProductFormScreen({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchCategories().then((cats) => {
+      const names = cats.map((c) => c.name);
+      setDynamicCategories(Array.from(new Set([...names, ...COMMON_CATEGORIES])));
+    });
+  }, []);
 
   // Discount % calculation
   const regNum = parseFloat(regularPrice);
@@ -169,7 +175,8 @@ export function ProductFormScreen({
               {isEdit ? "Edit Product" : "Add Product"}
             </h1>
             <p className="text-xs text-muted-foreground">
-              Configure product details, retail pricing, savings deals, and imagery for flyers and mobile app.
+              Configure product details, retail pricing, savings deals, and imagery for flyers and
+              mobile app.
             </p>
           </div>
         </div>
@@ -236,7 +243,7 @@ export function ProductFormScreen({
                       <CommandList>
                         <CommandEmpty>No category found.</CommandEmpty>
                         <CommandGroup>
-                          {COMMON_CATEGORIES.map((cat) => (
+                          {dynamicCategories.map((cat) => (
                             <CommandItem
                               key={cat}
                               value={cat}
@@ -250,7 +257,7 @@ export function ProductFormScreen({
                               <Check
                                 className={cn(
                                   "h-3.5 w-3.5",
-                                  category === cat ? "opacity-100" : "opacity-0"
+                                  category === cat ? "opacity-100" : "opacity-0",
                                 )}
                               />
                             </CommandItem>
@@ -399,7 +406,7 @@ export function ProductFormScreen({
                       "flex flex-col items-center rounded-lg border p-1.5 transition-all text-center group",
                       imageUrl === preset.url
                         ? "border-primary ring-2 ring-primary/20 bg-primary/5"
-                        : "border-border hover:border-foreground/30 bg-muted/20"
+                        : "border-border hover:border-foreground/30 bg-muted/20",
                     )}
                   >
                     <img
@@ -499,11 +506,7 @@ export function ProductFormScreen({
             ) : (
               <Package className="h-3.5 w-3.5" />
             )}
-            {isSubmitting
-              ? "Saving Product..."
-              : isEdit
-              ? "Update Product"
-              : "Create Product"}
+            {isSubmitting ? "Saving Product..." : isEdit ? "Update Product" : "Create Product"}
           </Button>
         </div>
       </form>

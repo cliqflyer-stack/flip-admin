@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CategoriesManagerDialog, RenderCategoryIcon } from "./CategoriesManagerDialog";
 import {
   createMerchant,
   updateMerchant,
@@ -41,6 +42,9 @@ import { cn } from "@/lib/utils";
 
 interface FranchiseFormScreenProps {
   franchise?: Merchant | null;
+  categories?: Category[];
+  merchants?: Merchant[];
+  onCategoryCreated?: (created: Category) => void;
   onSave: (saved: Merchant, isEdit: boolean) => void;
   onCancel: () => void;
 }
@@ -80,7 +84,14 @@ function deriveInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function FranchiseFormScreen({ franchise, onSave, onCancel }: FranchiseFormScreenProps) {
+export function FranchiseFormScreen({
+  franchise,
+  categories: propCategories,
+  merchants = [],
+  onCategoryCreated,
+  onSave,
+  onCancel,
+}: FranchiseFormScreenProps) {
   const isEdit = !!franchise;
 
   const [name, setName] = useState(franchise?.name || "");
@@ -95,7 +106,8 @@ export function FranchiseFormScreen({ franchise, onSave, onCancel }: FranchiseFo
   const [logoUrl, setLogoUrl] = useState(franchise?.logoUrl || "");
   const [bannerUrl, setBannerUrl] = useState(franchise?.bannerUrl || "");
 
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>(propCategories || []);
+  const [isManageCatOpen, setIsManageCatOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -104,13 +116,20 @@ export function FranchiseFormScreen({ franchise, onSave, onCancel }: FranchiseFo
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchCategories().then((cats) => {
-      setCategories(cats);
-      if (!franchise?.categoryId && cats.length > 0) {
-        setCategoryId(cats[0].id);
+    if (propCategories && propCategories.length > 0) {
+      setCategories(propCategories);
+      if (!franchise?.categoryId) {
+        setCategoryId(propCategories[0].id);
       }
-    });
-  }, [franchise]);
+    } else {
+      fetchCategories().then((cats) => {
+        setCategories(cats);
+        if (!franchise?.categoryId && cats.length > 0) {
+          setCategoryId(cats[0].id);
+        }
+      });
+    }
+  }, [franchise, propCategories]);
 
   // Update slug and initials automatically as user types name (unless manually edited)
   const handleNameChange = (val: string) => {
@@ -311,9 +330,20 @@ export function FranchiseFormScreen({ franchise, onSave, onCancel }: FranchiseFo
 
               {/* Category */}
               <div className="space-y-1.5">
-                <Label htmlFor="franchise-category" className="text-xs font-medium">
-                  Retail Category
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="franchise-category" className="text-xs font-medium">
+                    Retail Category
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsManageCatOpen(true)}
+                    className="h-5 px-1.5 text-[11px] font-medium text-primary hover:text-primary hover:underline"
+                  >
+                    + Manage Categories
+                  </Button>
+                </div>
                 <Select value={categoryId} onValueChange={setCategoryId}>
                   <SelectTrigger id="franchise-category" className="h-9 text-xs">
                     <SelectValue placeholder="Select category" />
@@ -321,7 +351,13 @@ export function FranchiseFormScreen({ franchise, onSave, onCancel }: FranchiseFo
                   <SelectContent>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id} className="text-xs">
-                        {cat.name}
+                        <div className="flex items-center gap-2">
+                          <RenderCategoryIcon
+                            icon={cat.icon}
+                            className="h-3.5 w-3.5 text-muted-foreground"
+                          />
+                          <span>{cat.name}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -664,6 +700,20 @@ export function FranchiseFormScreen({ franchise, onSave, onCancel }: FranchiseFo
           </Button>
         </div>
       </form>
+
+      {/* Dynamic Categories Manager Modal */}
+      <CategoriesManagerDialog
+        open={isManageCatOpen}
+        onOpenChange={setIsManageCatOpen}
+        categories={categories}
+        merchants={merchants}
+        onCategoriesUpdated={(newList) => {
+          setCategories(newList);
+          if (onCategoryCreated && newList.length > categories.length) {
+            onCategoryCreated(newList[newList.length - 1]);
+          }
+        }}
+      />
     </div>
   );
 }

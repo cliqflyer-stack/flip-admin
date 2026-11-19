@@ -44,16 +44,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CategoriesManagerDialog, RenderCategoryIcon } from "./CategoriesManagerDialog";
 import {
   deleteMerchant,
   resolveImageUrl,
   type ApiFlyer,
+  type Category,
   type Merchant,
   type StoreLocation,
 } from "@/lib/api-client";
 
 interface FranchisesViewProps {
   merchants: Merchant[];
+  categories: Category[];
   storeLocations: StoreLocation[];
   flyers: ApiFlyer[];
   onNavigateToAddFranchise: () => void;
@@ -61,11 +64,13 @@ interface FranchisesViewProps {
   onNavigateToStoresForFranchise: (franchiseId: string) => void;
   onNavigateToAddStoreForFranchise: (franchiseId: string) => void;
   onFranchiseDeleted: (id: string) => void;
+  onCategoriesUpdated: (categories: Category[]) => void;
   loading: boolean;
 }
 
 export function FranchisesView({
   merchants,
+  categories,
   storeLocations,
   flyers,
   onNavigateToAddFranchise,
@@ -73,15 +78,20 @@ export function FranchisesView({
   onNavigateToStoresForFranchise,
   onNavigateToAddStoreForFranchise,
   onFranchiseDeleted,
+  onCategoriesUpdated,
   loading,
 }: FranchisesViewProps) {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [franchiseToDelete, setFranchiseToDelete] = useState<Merchant | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCategoriesManagerOpen, setIsCategoriesManagerOpen] = useState(false);
 
-  // Available unique categories
+  // Available dynamic categories
   const categoriesList = useMemo(() => {
+    if (categories && categories.length > 0) {
+      return categories;
+    }
     const map = new Map<string, string>();
     merchants.forEach((m) => {
       if (m.category?.id && m.category?.name) {
@@ -93,8 +103,8 @@ export function FranchisesView({
         );
       }
     });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [merchants]);
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name, icon: "tag" }));
+  }, [categories, merchants]);
 
   // Filtered merchants
   const filteredMerchants = useMemo(() => {
@@ -168,14 +178,26 @@ export function FranchisesView({
           </p>
         </div>
 
-        <Button
-          onClick={onNavigateToAddFranchise}
-          size="sm"
-          className="h-8 gap-1.5 text-xs font-medium self-start sm:self-auto bg-primary text-primary-foreground shadow-xs"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Franchise
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCategoriesManagerOpen(true)}
+            className="h-8 gap-1.5 text-xs font-medium"
+          >
+            <Tags className="h-3.5 w-3.5 text-primary" />
+            Categories ({categories.length})
+          </Button>
+
+          <Button
+            onClick={onNavigateToAddFranchise}
+            size="sm"
+            className="h-8 gap-1.5 text-xs font-medium bg-primary text-primary-foreground shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Franchise
+          </Button>
+        </div>
       </div>
 
       {/* Summary KPI Cards */}
@@ -258,7 +280,13 @@ export function FranchisesView({
                   </SelectItem>
                   {categoriesList.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id} className="text-xs">
-                      {cat.name}
+                      <div className="flex items-center gap-1.5">
+                        <RenderCategoryIcon
+                          icon={cat.icon}
+                          className="h-3 w-3 text-muted-foreground"
+                        />
+                        <span>{cat.name}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -381,8 +409,15 @@ export function FranchisesView({
 
                       {/* Category */}
                       <TableCell>
-                        <Badge variant="outline" className="text-[11px] font-normal py-0.5">
-                          {categoryName}
+                        <Badge
+                          variant="outline"
+                          className="text-[11px] font-normal py-0.5 gap-1.5 inline-flex items-center"
+                        >
+                          <RenderCategoryIcon
+                            icon={merchant.category?.icon}
+                            className="h-3 w-3 text-muted-foreground"
+                          />
+                          <span>{categoryName}</span>
                         </Badge>
                       </TableCell>
 
@@ -554,6 +589,15 @@ export function FranchisesView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dynamic Categories Manager Modal */}
+      <CategoriesManagerDialog
+        open={isCategoriesManagerOpen}
+        onOpenChange={setIsCategoriesManagerOpen}
+        categories={categories}
+        merchants={merchants}
+        onCategoriesUpdated={onCategoriesUpdated}
+      />
     </div>
   );
 }

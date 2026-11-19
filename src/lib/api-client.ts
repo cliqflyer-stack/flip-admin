@@ -308,6 +308,58 @@ export async function fetchCategories(): Promise<Category[]> {
   return DEFAULT_CATEGORIES;
 }
 
+export async function createCategory(data: Partial<Category>): Promise<Category> {
+  const id =
+    data.id?.trim() ||
+    data.name
+      ?.toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/(^_|_$)/g, "") ||
+    `cat_${Date.now().toString(36)}`;
+
+  const res = await fetch(`${API_BASE}/api/v1/categories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...data,
+      id,
+      name: data.name?.trim(),
+      icon: data.icon || "tag",
+      displayOrder: data.displayOrder ?? 0,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to create category");
+  }
+  return res.json();
+}
+
+export async function updateCategory(id: string, data: Partial<Category>): Promise<Category> {
+  const res = await fetch(`${API_BASE}/api/v1/categories/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update category");
+  }
+  return res.json();
+}
+
+export async function deleteCategory(id: string): Promise<{ success: boolean; deletedId: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/categories/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to delete category");
+  }
+  return res.json();
+}
+
 export async function fetchStoreLocations(merchantId?: string): Promise<StoreLocation[]> {
   const url = new URL(`${API_BASE}/api/v1/store-locations`);
   if (merchantId) url.searchParams.set("merchantId", merchantId);

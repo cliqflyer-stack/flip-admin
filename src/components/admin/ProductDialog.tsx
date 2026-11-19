@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  ImagePlus,
-  Loader2,
-  Package,
-  Sparkles,
-  Tag,
-  Upload,
-  Check,
-  Percent,
-} from "lucide-react";
+import { ImagePlus, Loader2, Package, Sparkles, Tag, Upload, Check, Percent } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -37,6 +28,7 @@ import {
   updateProduct,
   uploadImage,
   resolveImageUrl,
+  fetchCategories,
   PRODUCT_PRESET_IMAGES,
   type ApiProduct,
   type Merchant,
@@ -88,10 +80,18 @@ export function ProductDialog({
   const [description, setDescription] = useState("");
   const [merchantId, setMerchantId] = useState(defaultMerchantId || merchants[0]?.id || "");
   const [imageUrl, setImageUrl] = useState(PRODUCT_PRESET_IMAGES[0].url);
+  const [dynamicCategories, setDynamicCategories] = useState<string[]>(CATEGORY_SUGGESTIONS);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [imageTab, setImageTab] = useState<"preset" | "upload" | "url">("preset");
+
+  useEffect(() => {
+    fetchCategories().then((cats) => {
+      const names = cats.map((c) => c.name);
+      setDynamicCategories(Array.from(new Set([...names, ...CATEGORY_SUGGESTIONS])));
+    });
+  }, []);
 
   // Reset or fill form when opening / changing product
   useEffect(() => {
@@ -124,7 +124,8 @@ export function ProductDialog({
 
   const regNum = parseFloat(regularPrice) || 0;
   const offNum = parseFloat(offerPrice) || 0;
-  const savingsPercent = regNum > offNum && regNum > 0 ? Math.round(((regNum - offNum) / regNum) * 100) : 0;
+  const savingsPercent =
+    regNum > offNum && regNum > 0 ? Math.round(((regNum - offNum) / regNum) * 100) : 0;
 
   // Handle local file upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,11 +244,21 @@ export function ProductDialog({
 
               {/* Image Source Tabs */}
               <div className="flex-1 space-y-2">
-                <Tabs value={imageTab} onValueChange={(v: any) => setImageTab(v)} className="w-full">
+                <Tabs
+                  value={imageTab}
+                  onValueChange={(v: any) => setImageTab(v)}
+                  className="w-full"
+                >
                   <TabsList className="grid grid-cols-3 h-7 text-xs">
-                    <TabsTrigger value="preset" className="text-[11px] py-1">Presets</TabsTrigger>
-                    <TabsTrigger value="upload" className="text-[11px] py-1">Upload File</TabsTrigger>
-                    <TabsTrigger value="url" className="text-[11px] py-1">Image URL</TabsTrigger>
+                    <TabsTrigger value="preset" className="text-[11px] py-1">
+                      Presets
+                    </TabsTrigger>
+                    <TabsTrigger value="upload" className="text-[11px] py-1">
+                      Upload File
+                    </TabsTrigger>
+                    <TabsTrigger value="url" className="text-[11px] py-1">
+                      Image URL
+                    </TabsTrigger>
                   </TabsList>
 
                   {/* Preset Gallery */}
@@ -285,7 +296,9 @@ export function ProductDialog({
                       <span className="text-xs font-medium text-foreground">
                         {isUploading ? "Uploading..." : "Click to select image file"}
                       </span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">JPG, PNG, WebP up to 5MB</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        JPG, PNG, WebP up to 5MB
+                      </p>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -357,7 +370,7 @@ export function ProductDialog({
                   className="text-xs"
                 />
                 <datalist id="category-options">
-                  {CATEGORY_SUGGESTIONS.map((c) => (
+                  {dynamicCategories.map((c) => (
                     <option key={c} value={c} />
                   ))}
                 </datalist>
@@ -404,7 +417,10 @@ export function ProductDialog({
                   Pricing & Deals
                 </Label>
                 {savingsPercent > 0 && (
-                  <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 font-bold border border-emerald-500/20">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] bg-emerald-500/10 text-emerald-600 font-bold border border-emerald-500/20"
+                  >
                     <Percent className="h-3 w-3 mr-0.5" />
                     {savingsPercent}% OFF Deal
                   </Badge>
@@ -413,7 +429,10 @@ export function ProductDialog({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="prod-reg" className="text-[11px] text-muted-foreground font-medium">
+                  <Label
+                    htmlFor="prod-reg"
+                    className="text-[11px] text-muted-foreground font-medium"
+                  >
                     Regular Price ($)
                   </Label>
                   <div className="relative">
@@ -432,11 +451,16 @@ export function ProductDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="prod-off" className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <Label
+                    htmlFor="prod-off"
+                    className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+                  >
                     Offer / Flyer Deal Price ($)
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-2 text-xs text-emerald-600 font-bold">$</span>
+                    <span className="absolute left-2.5 top-2 text-xs text-emerald-600 font-bold">
+                      $
+                    </span>
                     <Input
                       id="prod-off"
                       type="number"
@@ -508,11 +532,7 @@ export function ProductDialog({
               ) : (
                 <Check className="h-3.5 w-3.5 mr-1.5" />
               )}
-              {isSubmitting
-                ? "Saving..."
-                : isEdit
-                ? "Update Product"
-                : "Save & Add to Catalog"}
+              {isSubmitting ? "Saving..." : isEdit ? "Update Product" : "Save & Add to Catalog"}
             </Button>
           </DialogFooter>
         </form>

@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RenderCategoryIcon } from "./CategoriesManagerDialog";
 import {
   createMerchant,
   updateMerchant,
@@ -35,6 +36,7 @@ interface FranchiseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   franchise?: Merchant | null;
+  categories?: Category[];
   onSuccess: (saved: Merchant, isEdit: boolean) => void;
 }
 
@@ -67,6 +69,7 @@ export function FranchiseDialog({
   open,
   onOpenChange,
   franchise,
+  categories: propCategories,
   onSuccess,
 }: FranchiseDialogProps) {
   const isEdit = !!franchise;
@@ -80,14 +83,18 @@ export function FranchiseDialog({
   const [logoColor, setLogoColor] = useState("#FFFFFF");
   const [logoUrl, setLogoUrl] = useState("");
 
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>(propCategories || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchCategories().then(setCategories);
-  }, []);
+    if (propCategories && propCategories.length > 0) {
+      setCategories(propCategories);
+    } else {
+      fetchCategories().then(setCategories);
+    }
+  }, [propCategories]);
 
   useEffect(() => {
     if (open) {
@@ -251,7 +258,13 @@ export function FranchiseDialog({
                 <SelectContent>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id} className="text-xs">
-                      {cat.name}
+                      <div className="flex items-center gap-1.5">
+                        <RenderCategoryIcon
+                          icon={cat.icon}
+                          className="h-3 w-3 text-muted-foreground"
+                        />
+                        <span>{cat.name}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

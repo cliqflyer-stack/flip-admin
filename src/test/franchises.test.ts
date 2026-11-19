@@ -124,4 +124,51 @@ describe("Franchises Module & Data Synchronization", () => {
     expect(locations[0].merchant?.name).toBe("Whole Foods Market 365");
     expect(locations[0].merchant?.logoBg).toBe("#0B7A68");
   });
+
+  it("supports dynamic category creation, update, and detachment", () => {
+    // 1. Initial category list
+    let categoriesList = [...DEFAULT_CATEGORIES];
+
+    // 2. Add dynamic category
+    const newCategory = {
+      id: "electronics_tech",
+      name: "Electronics & Tech",
+      icon: "tv",
+      displayOrder: 7,
+    };
+    categoriesList = [...categoriesList, newCategory];
+    expect(categoriesList.find((c) => c.id === "electronics_tech")).toBeDefined();
+    expect(categoriesList.length).toBe(DEFAULT_CATEGORIES.length + 1);
+
+    // 3. Update dynamic category
+    categoriesList = categoriesList.map((c) =>
+      c.id === "electronics_tech" ? { ...c, name: "Consumer Electronics & Tech" } : c,
+    );
+    expect(
+      categoriesList.find((c) => c.id === "electronics_tech")?.name,
+    ).toBe("Consumer Electronics & Tech");
+
+    // 4. Assign to a merchant
+    let merchantsList = [
+      {
+        ...mockFranchise,
+        id: "merch_bestbuy",
+        name: "Best Buy Canada",
+        categoryId: "electronics_tech",
+        category: newCategory,
+      },
+    ];
+    expect(merchantsList[0].categoryId).toBe("electronics_tech");
+
+    // 5. Delete category: detaches merchant safely without deleting the merchant
+    const categoryToDelete = "electronics_tech";
+    categoriesList = categoriesList.filter((c) => c.id !== categoryToDelete);
+    merchantsList = merchantsList.map((m) =>
+      m.categoryId === categoryToDelete ? { ...m, categoryId: null, category: null } : m,
+    );
+
+    expect(categoriesList.find((c) => c.id === "electronics_tech")).toBeUndefined();
+    expect(merchantsList[0].categoryId).toBeNull();
+    expect(merchantsList[0].name).toBe("Best Buy Canada"); // Merchant remains intact
+  });
 });

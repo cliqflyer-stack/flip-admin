@@ -12,10 +12,12 @@ import {
   fetchProducts,
   fetchStats,
   fetchStoreLocations,
+  fetchCategories,
   resolveImageUrl,
   saveHotspotsBatch,
   type ApiFlyer,
   type ApiProduct,
+  type Category,
   type DashboardStats,
   type Merchant,
   type StoreLocation,
@@ -79,6 +81,7 @@ function AdminContent() {
   const [selectedFlyerId, setSelectedFlyerId] = useState<string>(urlFlyerId || "");
   const [catalogProducts, setCatalogProducts] = useState<ApiProduct[]>([]);
   const [merchantsList, setMerchantsList] = useState<Merchant[]>([]);
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [storeLocationsList, setStoreLocationsList] = useState<StoreLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -158,20 +161,21 @@ function AdminContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsData, flyersData, productsData, merchantsData, locationsData] = await Promise.all(
-        [
+      const [statsData, flyersData, productsData, merchantsData, locationsData, categoriesData] =
+        await Promise.all([
           fetchStats().catch(() => null),
           fetchFlyers().catch(() => []),
           fetchProducts().catch(() => []),
           fetchMerchants().catch(() => []),
           fetchStoreLocations().catch(() => []),
-        ],
-      );
+          fetchCategories().catch(() => []),
+        ]);
 
       if (statsData) setStats(statsData);
       if (productsData.length > 0) setCatalogProducts(productsData);
       if (merchantsData.length > 0) setMerchantsList(merchantsData);
       if (locationsData.length > 0) setStoreLocationsList(locationsData);
+      if (categoriesData.length > 0) setCategoriesList(categoriesData);
 
       if (flyersData.length > 0) {
         setFlyersList(flyersData);
@@ -522,6 +526,7 @@ function AdminContent() {
           {currentView === "franchises" && (
             <FranchisesView
               merchants={merchantsList}
+              categories={categoriesList}
               storeLocations={storeLocationsList}
               flyers={flyersList}
               onNavigateToAddFranchise={() => handleSelectView("add-franchise")}
@@ -544,12 +549,16 @@ function AdminContent() {
                 })
               }
               onFranchiseDeleted={handleFranchiseDeleted}
+              onCategoriesUpdated={setCategoriesList}
               loading={loading}
             />
           )}
 
           {currentView === "add-franchise" && (
             <FranchiseFormScreen
+              categories={categoriesList}
+              merchants={merchantsList}
+              onCategoryCreated={(created) => setCategoriesList((prev) => [...prev, created])}
               onSave={handleFranchiseSaved}
               onCancel={() => handleSelectView("franchises")}
             />
@@ -558,6 +567,9 @@ function AdminContent() {
           {currentView === "edit-franchise" && (
             <FranchiseFormScreen
               franchise={franchiseToEdit}
+              categories={categoriesList}
+              merchants={merchantsList}
+              onCategoryCreated={(created) => setCategoriesList((prev) => [...prev, created])}
               onSave={handleFranchiseSaved}
               onCancel={() => handleSelectView("franchises")}
             />
