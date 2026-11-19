@@ -138,11 +138,13 @@ export function AdminSidebar({
     <Sidebar collapsible="icon" className="border-r">
       {/* Brand Header */}
       <SidebarHeader className="p-3">
-        <div className="flex items-center gap-3">
-          <BrandIcon className="h-9 w-9 shrink-0" />
+        <div className="flex items-center group-data-[collapsible=icon]:justify-center">
           <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <BrandLogo className="h-5 w-auto" />
-            <span className="truncate text-[10px] text-muted-foreground font-medium mt-0.5">Admin</span>
+            <BrandLogo className="h-9 w-auto" />
+            <span className="truncate text-[10px] text-muted-foreground font-medium mt-1">Admin</span>
+          </div>
+          <div className="hidden group-data-[collapsible=icon]:block">
+            <BrandIcon className="h-8 w-8" />
           </div>
         </div>
       </SidebarHeader>
@@ -165,13 +167,17 @@ export function AdminSidebar({
                       isActive={isActive}
                       tooltip={item.title}
                       onClick={() => onSelectView(item.id)}
-                      className="cursor-pointer font-medium text-xs h-9"
+                      className={`cursor-pointer font-medium text-xs h-9 transition-colors ${
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold dark:bg-primary/20 dark:text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                     {item.badge && (
-                      <SidebarMenuBadge className="text-[10px] font-semibold">
+                      <SidebarMenuBadge className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20">
                         {item.badge}
                       </SidebarMenuBadge>
                     )}
@@ -197,13 +203,17 @@ export function AdminSidebar({
                       isActive={isActive}
                       tooltip={item.title}
                       onClick={() => onSelectView(item.id)}
-                      className="cursor-pointer font-medium text-xs h-9"
+                      className={`cursor-pointer font-medium text-xs h-9 transition-colors ${
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold dark:bg-primary/20 dark:text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                     {item.badge && (
-                      <SidebarMenuBadge className="text-[10px] font-semibold">
+                      <SidebarMenuBadge className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20">
                         {item.badge}
                       </SidebarMenuBadge>
                     )}
@@ -212,7 +222,7 @@ export function AdminSidebar({
               })}
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Customer Preview" className="font-medium text-xs h-9">
+                <SidebarMenuButton asChild tooltip="Customer Preview" className="font-medium text-xs h-9 text-muted-foreground hover:text-foreground">
                   <Link to="/preview">
                     <Eye className="h-4 w-4 text-primary" />
                     <span>Shopper Preview</span>
@@ -239,9 +249,13 @@ export function AdminSidebar({
                       isActive={isActive}
                       tooltip={item.title}
                       onClick={() => onSelectView(item.id)}
-                      className="cursor-pointer font-medium text-xs h-9"
+                      className={`cursor-pointer font-medium text-xs h-9 transition-colors ${
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold dark:bg-primary/20 dark:text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

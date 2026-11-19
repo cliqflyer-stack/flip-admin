@@ -1,5 +1,5 @@
 /**
- * Pre-defined retail flyer templates for Flip interactive flyers.
+ * Pre-defined retail flyer templates for Snatchup interactive flyers.
  * Each template includes aspect ratios, layout specs, and preset hotspot regions.
  */
 

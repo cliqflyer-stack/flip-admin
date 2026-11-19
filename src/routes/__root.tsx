@@ -29,7 +29,7 @@ function NotFoundComponent() {
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Go to Sign In
           </Link>
         </div>
       </div>
@@ -67,7 +67,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Sign In
           </a>
         </div>
       </div>
@@ -80,8 +80,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Flip Admin" },
-      { name: "description", content: "Flip Admin Portal" },
+      { title: "Snatchup Admin" },
+      { name: "description", content: "Snatchup Admin Portal" },
     ],
     links: [
       {

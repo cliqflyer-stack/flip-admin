@@ -26,7 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/admin/ThemeToggle";
-import { BrandLogo, BrandIcon } from "@/components/ui/BrandLogo";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
 
 interface LoginPageProps {
@@ -52,7 +52,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     try {
       const res = await login(email, password);
       if (res.success) {
-        toast.success("Welcome back! Signed in to Flip Admin.");
+        toast.success("Welcome back! Signed in to Snatchup Admin.");
         onLoginSuccess?.();
       } else {
         setError(res.error || "Authentication failed. Please check your credentials.");
@@ -79,10 +79,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     <div className="relative min-h-screen w-full flex flex-col justify-between bg-background text-foreground px-4 py-8">
       {/* Top Bar with Brand & Theme Toggle */}
       <header className="w-full max-w-5xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <BrandIcon className="h-8 w-8" />
-          <BrandLogo className="h-5 w-auto" />
-        </div>
+        <BrandLogo className="h-10 sm:h-11 w-auto" />
         <ThemeToggle />
       </header>
 
@@ -233,7 +230,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
       {/* Minimal Footer */}
       <footer className="w-full max-w-5xl mx-auto text-center text-xs text-muted-foreground pt-4">
-        <span>&copy; {new Date().getFullYear()} Flip Admin. All rights reserved.</span>
+        <span>&copy; {new Date().getFullYear()} Snatchup Admin. All rights reserved.</span>
       </footer>
     </div>
   );

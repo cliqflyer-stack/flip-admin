@@ -49,7 +49,7 @@ export const Route = createFileRoute("/preview")({
   }),
   head: () => ({
     meta: [
-      { title: "Dynamic Shopper Preview — Flip Interactive Flyers" },
+      { title: "Dynamic Shopper Preview — Snatchup Interactive Flyers" },
       {
         name: "description",
         content:

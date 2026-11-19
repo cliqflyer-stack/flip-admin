@@ -1,6 +1,6 @@
 /**
- * Backend API Client for Flip Admin Portal
- * Connects directly to the Neon-backed Flip REST API.
+ * Backend API Client for Snatchup Admin Portal
+ * Connects directly to the Neon-backed Snatchup REST API.
  */
 
 export const API_BASE =

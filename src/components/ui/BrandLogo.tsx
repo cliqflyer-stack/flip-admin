@@ -6,7 +6,7 @@ interface BrandLogoProps extends React.SVGProps<SVGSVGElement> {
 }
 
 export function BrandLogo({
-  className = "h-7 w-auto",
+  className = "h-9 w-auto",
   variant = "default",
   ...props
 }: BrandLogoProps) {

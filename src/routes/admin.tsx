@@ -45,8 +45,8 @@ export const Route = createFileRoute("/admin")({
   }),
   head: () => ({
     meta: [
-      { title: "Flip Admin" },
-      { name: "description", content: "Flip Admin Management Portal" },
+      { title: "Snatchup Admin" },
+      { name: "description", content: "Snatchup Admin Management Portal" },
     ],
   }),
   component: AdminPageWrapper,
