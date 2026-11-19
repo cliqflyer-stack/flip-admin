@@ -79,28 +79,28 @@ export function AdminSidebar({
   const studioNavItems = [
     {
       id: "dashboard" as AdminView,
-      title: "Dashboard",
+      title: "Overview",
       icon: LayoutDashboard,
       isActive: currentView === "dashboard",
       badge: undefined,
     },
     {
       id: "editor" as AdminView,
-      title: "Interactive Studio",
+      title: "Studio",
       icon: Layers,
       isActive: isEditorActive,
       badge: flyersCount > 0 ? `${flyersCount}` : undefined,
     },
     {
       id: "flyers" as AdminView,
-      title: "Flyers & Circulars",
+      title: "Flyers",
       icon: FileText,
       isActive: currentView === "flyers",
       badge: flyersCount > 0 ? `${flyersCount}` : undefined,
     },
     {
       id: "templates" as AdminView,
-      title: "Templates Library",
+      title: "Templates",
       icon: Sparkles,
       isActive: currentView === "templates",
       badge: "5",
@@ -110,14 +110,14 @@ export function AdminSidebar({
   const inventoryNavItems = [
     {
       id: "stores" as AdminView,
-      title: "Stores & Locations",
+      title: "Stores",
       icon: Store,
       isActive: isStoresActive,
       badge: storeLocationsCount > 0 ? `${storeLocationsCount}` : undefined,
     },
     {
       id: "products" as AdminView,
-      title: "Product Catalog",
+      title: "Products",
       icon: Package,
       isActive: isProductsActive,
       badge: productsCount > 0 ? `${productsCount}` : undefined,
@@ -127,7 +127,7 @@ export function AdminSidebar({
   const systemNavItems = [
     {
       id: "settings" as AdminView,
-      title: "Settings & API",
+      title: "Settings",
       icon: Settings,
       isActive: currentView === "settings",
       badge: undefined,
@@ -142,7 +142,7 @@ export function AdminSidebar({
           <BrandIcon className="h-9 w-9 shrink-0" />
           <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <BrandLogo className="h-5 w-auto" />
-            <span className="truncate text-[10px] text-muted-foreground font-medium mt-0.5">Admin Studio</span>
+            <span className="truncate text-[10px] text-muted-foreground font-medium mt-0.5">Admin</span>
           </div>
         </div>
       </SidebarHeader>
@@ -153,7 +153,7 @@ export function AdminSidebar({
         {/* Studio Navigation Group */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground">
-            Flyer Studio
+            Studio
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -185,7 +185,7 @@ export function AdminSidebar({
         {/* Catalog Navigation Group */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground">
-            Inventory & Data
+            Catalog
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

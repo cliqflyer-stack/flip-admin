@@ -113,13 +113,13 @@ export function ProductsView({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Product Catalog</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Products</h1>
             <Badge variant="secondary" className="text-xs font-semibold">
               {products.length} Products
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Manage catalog items, retail pricing, discounts, and brand mapping for circular hotspots.
+            Manage catalog items, pricing, and product mapping.
           </p>
         </div>
 

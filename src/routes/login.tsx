@@ -10,12 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign In — Flip Studio Admin Portal" },
-      {
-        name: "description",
-        content:
-          "Secure login to Flip Studio. Manage interactive digital circulars, configure product hotspots, and distribute to store locations.",
-      },
+      { title: "Sign In — Flip Admin" },
+      { name: "description", content: "Sign in to Flip Admin" },
     ],
   }),
   component: LoginRouteWrapper,

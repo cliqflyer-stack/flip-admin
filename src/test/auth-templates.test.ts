@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_CREDENTIALS } from "@/lib/auth-context";
 import { TEMPLATES_LIBRARY } from "@/lib/templates-data";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 
 describe("Admin Authentication & Templates", () => {
-  it("provides valid demo credentials", () => {
-    expect(DEMO_CREDENTIALS.email).toBe("admin@flip.local");
-    expect(DEMO_CREDENTIALS.password).toBe("FlipAdmin2026!");
+  it("exports authentication context providers", () => {
+    expect(AuthProvider).toBeDefined();
+    expect(useAuth).toBeDefined();
   });
 
   it("contains pre-configured retail flyer templates", () => {

@@ -45,12 +45,8 @@ export const Route = createFileRoute("/admin")({
   }),
   head: () => ({
     meta: [
-      { title: "Flip Admin — Interactive Flyer & Studio Management" },
-      {
-        name: "description",
-        content:
-          "Professional admin portal for managing digital circulars, interactive hotspots, multi-store locations, and catalog products.",
-      },
+      { title: "Flip Admin" },
+      { name: "description", content: "Flip Admin Management Portal" },
     ],
   }),
   component: AdminPageWrapper,

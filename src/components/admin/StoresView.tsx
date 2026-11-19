@@ -130,13 +130,13 @@ export function StoresView({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Stores &amp; Locations</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Stores</h1>
             <Badge variant="secondary" className="text-xs font-semibold">
-              {storeLocations.length} Branches
+              {storeLocations.length} Stores
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Manage multi-location retail chains, franchise branches, GPS map coordinates, and store circulars.
+            Manage store locations, addresses, and assigned circulars.
           </p>
         </div>
 

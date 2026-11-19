@@ -149,13 +149,13 @@ export function TemplatesView({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Flyer Templates &amp; Blueprints</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Templates</h1>
             <Badge variant="secondary" className="text-xs font-semibold">
-              {TEMPLATES_LIBRARY.length} Ready
+              {TEMPLATES_LIBRARY.length} Templates
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Launch professional circulars instantly with pre-calculated hotspot matrices and responsive aspect ratios.
+            Select a layout blueprint with pre-configured hotspot grids.
           </p>
         </div>
 

@@ -124,14 +124,14 @@ export function FlyersView({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Flyers &amp; Circulars
+              Flyers
             </h1>
             <Badge variant="secondary" className="text-xs font-semibold">
               {totalCount} Total
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Configure flyer lifecycle, validity periods, expiry rules, and hotspot mappings. Expired circulars are hidden automatically from shoppers.
+            Manage published circulars, schedules, and interactive hotspots.
           </p>
         </div>
 
@@ -142,7 +142,7 @@ export function FlyersView({
             className="h-8 gap-1.5 text-xs font-semibold bg-primary text-primary-foreground shadow-xs"
           >
             <Plus className="h-3.5 w-3.5" />
-            Upload Circular
+            Upload Flyer
           </Button>
         )}
       </div>

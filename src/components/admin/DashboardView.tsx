@@ -64,7 +64,7 @@ export function DashboardView({
     {
       title: "Active Circulars",
       value: activeFlyersCount,
-      subtext: "Published on customer mobile feed",
+      subtext: "Published",
       icon: CheckCircle2,
       accent: "text-emerald-600 dark:text-emerald-400",
       bgAccent: "border-emerald-500/20 bg-emerald-500/5",
@@ -73,7 +73,7 @@ export function DashboardView({
     {
       title: "Expired Circulars",
       value: expiredFlyersCount,
-      subtext: "Automatically hidden from shoppers",
+      subtext: "Hidden",
       icon: AlertTriangle,
       accent: "text-amber-600 dark:text-amber-400",
       bgAccent: "border-amber-500/20 bg-amber-500/5",
@@ -82,7 +82,7 @@ export function DashboardView({
     {
       title: "Interactive Hotspots",
       value: totalHotspots,
-      subtext: "Mapped shoppable touch targets",
+      subtext: "Mapped",
       icon: Layers,
       accent: "text-primary",
       bgAccent: "border-primary/20 bg-primary/5",
@@ -91,7 +91,7 @@ export function DashboardView({
     {
       title: "Store Locations",
       value: stats ? stats.merchants : 5,
-      subtext: "Franchise branches configured",
+      subtext: "Locations",
       icon: Store,
       accent: "text-foreground",
       bgAccent: "",
@@ -109,9 +109,9 @@ export function DashboardView({
       {/* Header Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Dashboard Overview</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Overview</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time status of active circulars, validity periods, shoppable hotspots, and franchise store branches.
+            Manage circulars, interactive hotspots, and stores.
           </p>
         </div>
 

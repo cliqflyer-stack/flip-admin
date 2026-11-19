@@ -19,12 +19,6 @@ interface AuthContextType {
 const STORAGE_KEY = "flip_admin_session";
 const TOKEN_KEY = "flip_admin_token";
 
-// Configured admin credentials seeded on Neon Postgres
-export const DEMO_CREDENTIALS = {
-  email: "admin@flip.local",
-  password: "FlipAdmin2026!",
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -56,7 +50,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
             }
           } catch (e) {
-            // Token may have expired
             console.warn("Session verification failed, logging out", e);
             logout();
           }
@@ -72,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Validate inputs
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password.trim();
 
@@ -81,7 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Connect to real backend API (Neon Postgres) to verify credentials and ensure user has 'admin' role
       const res = await loginUser(cleanEmail, cleanPass, true);
 
       if (!res.user || res.user.role !== "admin") {
@@ -108,29 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(adminUser);
       return { success: true };
     } catch (err: any) {
-      // Graceful fallback if Render deployment is cold starting or deploying route:
-      if (
-        (err.message?.includes("404") ||
-          err.message?.includes("Not Found") ||
-          err.message?.includes("Failed to fetch") ||
-          err.message?.includes("NetworkError")) &&
-        cleanEmail === DEMO_CREDENTIALS.email &&
-        cleanPass === DEMO_CREDENTIALS.password
-      ) {
-        const adminUser: AdminUser = {
-          email: cleanEmail,
-          name: "Super Administrator",
-          role: "admin",
-          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser));
-        setUser(adminUser);
-        return { success: true };
-      }
-
       return {
         success: false,
-        error: err.message || "Invalid credentials or unauthorized. Only admins can access.",
+        error: err.message || "Invalid credentials. Please verify your email and password.",
       };
     }
   };

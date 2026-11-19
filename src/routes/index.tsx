@@ -762,7 +762,7 @@ function Index() {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="h-11 px-6 bg-background">
-                  <Link to="/login">Sign In with Demo Credentials</Link>
+                  <Link to="/login">Sign In to Admin</Link>
                 </Button>
               </div>
             </div>
