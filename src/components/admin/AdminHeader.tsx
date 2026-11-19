@@ -26,6 +26,7 @@ interface AdminHeaderProps {
 const VIEW_NAMES: Record<AdminView, string> = {
   dashboard: "Dashboard Overview",
   editor: "Interactive Flyer Studio",
+  flyers: "Flyers & Circulars",
   "upload-flyer": "Upload Circular",
   templates: "Templates Library",
   stores: "Franchises & Store Locations",

@@ -125,12 +125,12 @@ export function StoresView({
     filtered.find((l) => l.id === selectedMapStoreId) || filtered[0] || storeLocations[0];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto w-full">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">Stores & Locations</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Stores &amp; Locations</h1>
             <Badge variant="secondary" className="text-xs font-semibold">
               {storeLocations.length} Branches
             </Badge>

@@ -1,7 +1,9 @@
 import { createFileRoute, ClientOnly, Link } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
+  CalendarClock,
   ChevronRight,
   ExternalLink,
   Eye,
@@ -28,6 +30,7 @@ import {
   fetchProducts,
   fetchStoreLocations,
   resolveImageUrl,
+  isFlyerExpired,
   type ApiFlyer,
   type ApiProduct,
   type Merchant,
@@ -79,6 +82,7 @@ function DynamicPreviewPage() {
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showExpiredAdmin, setShowExpiredAdmin] = useState(false);
 
   // Load database records on mount
   useEffect(() => {
@@ -208,6 +212,17 @@ function DynamicPreviewPage() {
               <p className="text-[11px] text-muted-foreground">Select a brand or store to browse active circulars</p>
             </div>
           </div>
+
+          <Button
+            variant={showExpiredAdmin ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
+            className="h-8 text-xs gap-1.5"
+            title="Toggle viewing expired flyers in preview"
+          >
+            <CalendarClock className="h-3.5 w-3.5 text-primary" />
+            <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
+          </Button>
         </header>
 
         <main className="p-6 max-w-5xl mx-auto flex-1 w-full space-y-6">
@@ -221,7 +236,7 @@ function DynamicPreviewPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {merchants.map((brand) => {
               const brandLocations = storeLocations.filter((l) => l.merchantId === brand.id);
-              const brandFlyers = flyers.filter((f) => f.merchantId === brand.id);
+              const brandFlyers = flyers.filter((f) => f.merchantId === brand.id && (showExpiredAdmin || !isFlyerExpired(f)));
 
               return (
                 <Card
@@ -265,7 +280,9 @@ function DynamicPreviewPage() {
   if (!selectedFlyerId && selectedBrandId && !selectedStoreId) {
     const brand = merchants.find((m) => m.id === selectedBrandId);
     const locations = storeLocations.filter((l) => l.merchantId === selectedBrandId);
-    const chainFlyers = flyers.filter((f) => f.merchantId === selectedBrandId && !f.storeLocationId);
+    const chainFlyers = flyers.filter(
+      (f) => f.merchantId === selectedBrandId && !f.storeLocationId && (showExpiredAdmin || !isFlyerExpired(f))
+    );
 
     return (
       <div className="min-h-screen bg-muted/20 flex flex-col">
@@ -286,6 +303,17 @@ function DynamicPreviewPage() {
               <p className="text-[11px] text-muted-foreground">Select a store branch to view its localized circulars</p>
             </div>
           </div>
+
+          <Button
+            variant={showExpiredAdmin ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
+            className="h-8 text-xs gap-1.5"
+            title="Toggle viewing expired flyers in preview"
+          >
+            <CalendarClock className="h-3.5 w-3.5 text-primary" />
+            <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
+          </Button>
         </header>
 
         <main className="p-6 max-w-5xl mx-auto flex-1 w-full space-y-6">
@@ -326,7 +354,9 @@ function DynamicPreviewPage() {
             {/* Store branches */}
             {locations.map((loc) => {
               const locFlyers = flyers.filter(
-                (f) => f.storeLocationId === loc.id || (f.merchantId === brand?.id && !f.storeLocationId)
+                (f) =>
+                  (f.storeLocationId === loc.id || (f.merchantId === brand?.id && !f.storeLocationId)) &&
+                  (showExpiredAdmin || !isFlyerExpired(f))
               );
 
               return (
@@ -373,13 +403,11 @@ function DynamicPreviewPage() {
     const activeLocation = !isChain ? storeLocations.find((l) => l.id === selectedStoreId) : null;
 
     const availableFlyers = flyers.filter((f) => {
-      if (isChain) {
-        return f.merchantId === selectedBrandId && !f.storeLocationId;
-      }
-      return (
-        f.storeLocationId === selectedStoreId ||
-        (f.merchantId === activeLocation?.merchantId && !f.storeLocationId)
-      );
+      const matches = isChain
+        ? f.merchantId === selectedBrandId && !f.storeLocationId
+        : f.storeLocationId === selectedStoreId ||
+          (f.merchantId === activeLocation?.merchantId && !f.storeLocationId);
+      return matches && (showExpiredAdmin || !isFlyerExpired(f));
     });
 
     return (
@@ -403,6 +431,17 @@ function DynamicPreviewPage() {
               <p className="text-[11px] text-muted-foreground">Select a circular to launch mobile preview</p>
             </div>
           </div>
+
+          <Button
+            variant={showExpiredAdmin ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
+            className="h-8 text-xs gap-1.5"
+            title="Toggle viewing expired flyers in preview"
+          >
+            <CalendarClock className="h-3.5 w-3.5 text-primary" />
+            <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
+          </Button>
         </header>
 
         <main className="p-6 max-w-5xl mx-auto flex-1 w-full space-y-6">
@@ -422,48 +461,59 @@ function DynamicPreviewPage() {
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {availableFlyers.map((flyer) => (
-                <Card
-                  key={flyer.id}
-                  onClick={() => activateFlyer(flyer)}
-                  className="cursor-pointer hover:border-primary hover:shadow-md transition-all overflow-hidden flex flex-col justify-between border shadow-xs bg-card"
-                >
-                  <div>
-                    <div className="relative aspect-[16/10] bg-muted/40 overflow-hidden border-b">
-                      <img
-                        src={resolveImageUrl(flyer.flyerImageUrl)}
-                        alt={flyer.title}
-                        className="h-full w-full object-cover object-top"
-                      />
-                      <div className="absolute top-2 left-2 flex items-center gap-1">
-                        <Badge variant="default" className="text-[10px] uppercase font-bold">
-                          {flyer.status}
-                        </Badge>
-                        {flyer.badgeText && (
-                          <Badge variant="outline" className="text-[10px] bg-background/90 font-semibold">
-                            {flyer.badgeText}
+              {availableFlyers.map((flyer) => {
+                const expired = isFlyerExpired(flyer);
+                return (
+                  <Card
+                    key={flyer.id}
+                    onClick={() => activateFlyer(flyer)}
+                    className={`cursor-pointer hover:border-primary hover:shadow-md transition-all overflow-hidden flex flex-col justify-between border shadow-xs bg-card ${
+                      expired ? "opacity-80 border-amber-300 dark:border-amber-700/60 bg-amber-500/5" : ""
+                    }`}
+                  >
+                    <div>
+                      <div className="relative aspect-[16/10] bg-muted/40 overflow-hidden border-b">
+                        <img
+                          src={resolveImageUrl(flyer.flyerImageUrl)}
+                          alt={flyer.title}
+                          className="h-full w-full object-cover object-top"
+                        />
+                        <div className="absolute top-2 left-2 flex items-center gap-1">
+                          <Badge variant={expired ? "destructive" : "default"} className="text-[10px] uppercase font-bold">
+                            {expired ? "Expired · Hidden" : flyer.status}
                           </Badge>
+                          {flyer.badgeText && (
+                            <Badge variant="outline" className="text-[10px] bg-background/90 font-semibold">
+                              {flyer.badgeText}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white">
+                          {flyer.hotspots?.length || 0} hotspots
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <h3 className="font-semibold text-sm text-foreground">{flyer.title}</h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {flyer.subtitle || "Weekly digital circular"}
+                        </p>
+                        {flyer.validTo && (
+                          <div className={`flex items-center gap-1 text-[11px] mt-1 ${expired ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
+                            <CalendarClock className="h-3 w-3" />
+                            <span>{expired ? "Expired" : "Expires"}: {new Date(flyer.validTo).toLocaleDateString()}</span>
+                          </div>
                         )}
                       </div>
-                      <div className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white">
-                        {flyer.hotspots?.length || 0} hotspots
-                      </div>
                     </div>
 
-                    <div className="p-4">
-                      <h3 className="font-semibold text-sm text-foreground">{flyer.title}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {flyer.subtitle || "Weekly digital circular"}
-                      </p>
+                    <div className="p-4 pt-2 border-t bg-muted/20 flex items-center justify-between text-xs text-primary font-medium">
+                      <span>Open Mobile Preview</span>
+                      <ChevronRight className="h-4 w-4" />
                     </div>
-                  </div>
-
-                  <div className="p-4 pt-2 border-t bg-muted/20 flex items-center justify-between text-xs text-primary font-medium">
-                    <span>Open Mobile Preview</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </main>
@@ -536,6 +586,31 @@ function DynamicPreviewPage() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6 overflow-auto">
         <div className="w-full flex flex-col items-center gap-4">
+          {/* Expired Warning Banner */}
+          {activeFlyer && isFlyerExpired(activeFlyer) && (
+            <div className="w-full max-w-3xl rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700/60 dark:bg-amber-950/40 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                <span>
+                  <strong>Expired Circular:</strong> This flyer expired on{" "}
+                  {new Date(activeFlyer.validTo!).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  and is automatically hidden from shoppers in production mobile apps.
+                </span>
+              </div>
+              <Link
+                to="/admin"
+                search={{ view: "flyers" }}
+                className="shrink-0 text-xs font-semibold text-primary hover:underline"
+              >
+                Configure Expiry
+              </Link>
+            </div>
+          )}
+
           {/* Store & Flyer Info Header Pill */}
           <div className="flex flex-wrap items-center justify-between gap-3 w-full max-w-3xl bg-card p-3 rounded-xl border shadow-xs text-xs">
             <div className="flex items-center gap-3">

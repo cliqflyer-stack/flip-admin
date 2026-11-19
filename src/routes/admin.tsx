@@ -32,6 +32,7 @@ import { StoresView } from "@/components/admin/StoresView";
 import { ProductsView } from "@/components/admin/ProductsView";
 import { SettingsView } from "@/components/admin/SettingsView";
 import { UploadFlyerScreen } from "@/components/admin/UploadFlyerScreen";
+import { FlyersView } from "@/components/admin/FlyersView";
 import { StoreFormScreen } from "@/components/admin/StoreFormScreen";
 import { ProductFormScreen } from "@/components/admin/ProductFormScreen";
 
@@ -391,6 +392,9 @@ function AdminContent() {
               onOpenUpload={() => handleSelectView("upload-flyer")}
               onSelectView={handleSelectView}
               onDeleteFlyer={handleDeleteFlyer}
+              onFlyerUpdated={(updated) => {
+                setFlyersList((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+              }}
             />
           )}
 
@@ -404,6 +408,26 @@ function AdminContent() {
                 handleSelectView("editor", created.id);
               }}
               onCancel={() => handleSelectView("dashboard")}
+            />
+          )}
+
+          {currentView === "flyers" && (
+            <FlyersView
+              flyers={flyersList}
+              merchants={merchantsList}
+              loading={loading}
+              onSelectFlyerToEdit={(id) => {
+                handleSelectFlyer(id);
+                handleSelectView("editor", id);
+              }}
+              onDeleteFlyer={handleDeleteFlyer}
+              onFlyerUpdated={(updated) => {
+                setFlyersList((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+                if (updated.id === selectedFlyerId) {
+                  setImageUrl(resolveImageUrl(updated.flyerImageUrl));
+                }
+              }}
+              onOpenUpload={() => handleSelectView("upload-flyer")}
             />
           )}
 
@@ -427,6 +451,12 @@ function AdminContent() {
               onOpenUpload={() => handleSelectView("upload-flyer")}
               imageUrl={imageUrl}
               imgSize={imgSize}
+              onFlyerUpdated={(updated) => {
+                setFlyersList((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+                if (updated.id === selectedFlyerId) {
+                  setImageUrl(resolveImageUrl(updated.flyerImageUrl));
+                }
+              }}
             />
           )}
 

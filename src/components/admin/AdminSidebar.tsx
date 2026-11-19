@@ -2,6 +2,7 @@ import React from "react";
 import {
   ExternalLink,
   Eye,
+  FileText,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -37,11 +38,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BrandLogo, BrandIcon } from "@/components/ui/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
 
 export type AdminView =
   | "dashboard"
   | "editor"
+  | "flyers"
   | "upload-flyer"
   | "templates"
   | "stores"
@@ -89,6 +92,13 @@ export function AdminSidebar({
       badge: flyersCount > 0 ? `${flyersCount}` : undefined,
     },
     {
+      id: "flyers" as AdminView,
+      title: "Flyers & Circulars",
+      icon: FileText,
+      isActive: currentView === "flyers",
+      badge: flyersCount > 0 ? `${flyersCount}` : undefined,
+    },
+    {
       id: "templates" as AdminView,
       title: "Templates Library",
       icon: Sparkles,
@@ -129,12 +139,10 @@ export function AdminSidebar({
       {/* Brand Header */}
       <SidebarHeader className="p-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-sm">
-            F
-          </div>
-          <div className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-sm font-bold tracking-tight">Flip Admin</span>
-            <span className="truncate text-[11px] text-muted-foreground font-medium">Digital Circular Studio</span>
+          <BrandIcon className="h-9 w-9 shrink-0" />
+          <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+            <BrandLogo className="h-5 w-auto" />
+            <span className="truncate text-[10px] text-muted-foreground font-medium mt-0.5">Admin Studio</span>
           </div>
         </div>
       </SidebarHeader>

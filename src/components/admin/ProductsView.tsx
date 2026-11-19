@@ -108,12 +108,12 @@ export function ProductsView({
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto w-full">
       {/* Header Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">Product Catalog</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Product Catalog</h1>
             <Badge variant="secondary" className="text-xs font-semibold">
               {products.length} Products
             </Badge>

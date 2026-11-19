@@ -91,6 +91,8 @@ export interface ApiFlyer {
   pageCount: number;
   createdAt?: string;
   updatedAt?: string;
+  validFrom?: string | null;
+  validTo?: string | null;
   merchant?: Merchant;
   storeLocation?: StoreLocation | null;
   hotspots?: ApiHotspot[];
@@ -109,8 +111,12 @@ export async function fetchStats(): Promise<DashboardStats> {
   return res.json();
 }
 
-export async function fetchFlyers(): Promise<ApiFlyer[]> {
-  const res = await fetch(`${API_BASE}/api/v1/flyers`);
+export async function fetchFlyers(includeExpired = true): Promise<ApiFlyer[]> {
+  const url = new URL(`${API_BASE}/api/v1/flyers`);
+  if (includeExpired) {
+    url.searchParams.set('includeExpired', 'true');
+  }
+  const res = await fetch(url.toString());
   if (!res.ok) throw new Error('Failed to fetch flyers');
   return res.json();
 }
@@ -317,6 +323,195 @@ export async function fetchCurrentUser(token: string): Promise<{ user: AuthUser 
     throw new Error(data.error || 'Failed to verify session');
   }
   return data;
+}
+
+export function isFlyerExpired(flyer: ApiFlyer): boolean {
+  if (!flyer.validTo) return false;
+  return new Date(flyer.validTo) < new Date();
+}
+
+export function isFlyerScheduled(flyer: ApiFlyer): boolean {
+  if (!flyer.validFrom) return false;
+  return new Date(flyer.validFrom) > new Date();
+}
+
+export function isFlyerActive(flyer: ApiFlyer): boolean {
+  return flyer.status === 'published' && !isFlyerExpired(flyer) && !isFlyerScheduled(flyer);
+}
+
+export interface FlyerExpiryInfo {
+  status: 'active' | 'expired' | 'scheduled' | 'no-expiry' | 'draft' | 'archived';
+  badgeLabel: string;
+  badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline';
+  daysRemaining?: number;
+  formattedExpiry?: string;
+  formattedValidFrom?: string;
+  isExpired: boolean;
+  isVisibleToShoppers: boolean;
+}
+
+export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
+  const now = new Date();
+  const isExpired = isFlyerExpired(flyer);
+  const isScheduled = isFlyerScheduled(flyer);
+
+  const formattedExpiry = flyer.validTo
+    ? new Date(flyer.validTo).toLocaleDateString('en-CA', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : undefined;
+
+  const formattedValidFrom = flyer.validFrom
+    ? new Date(flyer.validFrom).toLocaleDateString('en-CA', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : undefined;
+
+  if (flyer.status === 'draft') {
+    return {
+      status: 'draft',
+      badgeLabel: 'Draft',
+      badgeVariant: 'secondary',
+      formattedExpiry,
+      formattedValidFrom,
+      isExpired,
+      isVisibleToShoppers: false,
+    };
+  }
+
+  if (flyer.status === 'archived') {
+    return {
+      status: 'archived',
+      badgeLabel: 'Archived',
+      badgeVariant: 'secondary',
+      formattedExpiry,
+      formattedValidFrom,
+      isExpired,
+      isVisibleToShoppers: false,
+    };
+  }
+
+  if (isExpired) {
+    return {
+      status: 'expired',
+      badgeLabel: 'Expired · Hidden',
+      badgeVariant: 'destructive',
+      formattedExpiry,
+      formattedValidFrom,
+      isExpired: true,
+      isVisibleToShoppers: false,
+    };
+  }
+
+  if (isScheduled) {
+    return {
+      status: 'scheduled',
+      badgeLabel: formattedValidFrom ? `Starts ${formattedValidFrom}` : 'Scheduled',
+      badgeVariant: 'outline',
+      formattedExpiry,
+      formattedValidFrom,
+      isExpired: false,
+      isVisibleToShoppers: false,
+    };
+  }
+
+  if (flyer.validTo) {
+    const validToDate = new Date(flyer.validTo);
+    const diffMs = validToDate.getTime() - now.getTime();
+    const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+    const label =
+      daysRemaining === 0
+        ? 'Expires today'
+        : daysRemaining === 1
+        ? 'Expires tomorrow'
+        : daysRemaining <= 7
+        ? `${daysRemaining} days left`
+        : `Until ${formattedExpiry}`;
+
+    return {
+      status: 'active',
+      badgeLabel: label,
+      badgeVariant: 'default',
+      daysRemaining,
+      formattedExpiry,
+      formattedValidFrom,
+      isExpired: false,
+      isVisibleToShoppers: true,
+    };
+  }
+
+  return {
+    status: 'no-expiry',
+    badgeLabel: 'Active · No Expiry',
+    badgeVariant: 'outline',
+    formattedExpiry: undefined,
+    formattedValidFrom,
+    isExpired: false,
+    isVisibleToShoppers: true,
+  };
+}
+
+/**
+ * Format date string into YYYY-MM-DD for <input type="date" />
+ */
+export function formatIsoDateOnly(isoString?: string | null): string {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Convert a YYYY-MM-DD date input string into an ISO string at end of that day (23:59:59.999)
+ */
+export function toEndOfDayIso(dateStr: string): string {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(year, month - 1, day, 23, 59, 59, 999);
+  return d.toISOString();
+}
+
+/**
+ * Convert a YYYY-MM-DD date input string into an ISO string at start of that day (00:00:00.000)
+ */
+export function toStartOfDayIso(dateStr: string): string {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(year, month - 1, day, 0, 0, 0, 0);
+  return d.toISOString();
+}
+
+/**
+ * Calculate future date string YYYY-MM-DD from today
+ */
+export function getRelativeDateString(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Calculate the end date of current month in YYYY-MM-DD
+ */
+export function getEndOfCurrentMonthString(): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**

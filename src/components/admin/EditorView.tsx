@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  CalendarClock,
   Check,
   ChevronRight,
   ChevronsUpDown,
@@ -21,6 +22,7 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  Crop,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,12 +53,18 @@ import {
 } from "@/components/ui/select";
 import {
   resolveImageUrl,
+  isFlyerExpired,
+  getFlyerExpiryInfo,
+  updateFlyer,
+  uploadImage,
   type ApiFlyer,
   type ApiProduct,
   type Merchant,
   type StoreLocation,
 } from "@/lib/api-client";
 import { ProductDialog } from "./ProductDialog";
+import { FlyerExpiryDialog } from "./FlyerExpiryDialog";
+import { FlyerCropDialog } from "./FlyerCropDialog";
 import type { Hotspot, HotspotRect } from "@/lib/flyer-storage";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +89,7 @@ interface EditorViewProps {
   onOpenUpload: () => void;
   imageUrl: string;
   imgSize: { width: number; height: number };
+  onFlyerUpdated?: (flyer: ApiFlyer) => void;
 }
 
 export function EditorView({
@@ -102,10 +111,12 @@ export function EditorView({
   onOpenUpload,
   imageUrl,
   imgSize,
+  onFlyerUpdated,
 }: EditorViewProps) {
   // Navigation states within Studio
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [storeSearch, setStoreSearch] = useState("");
+  const [expiryDialogOpen, setExpiryDialogOpen] = useState(false);
 
   // Editor states
   const [search, setSearch] = useState("");
@@ -114,8 +125,34 @@ export function EditorView({
   const [drawProduct, setDrawProduct] = useState<ApiProduct | null>(null);
   const [zoom, setZoom] = useState(1.0);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
 
   const currentFlyer = flyers.find((f) => f.id === selectedFlyerId);
+
+  const handleApplyCrop = async (result: {
+    file: File;
+    previewUrl: string;
+    width: number;
+    height: number;
+    aspectRatio: number;
+  }) => {
+    if (!currentFlyer) return;
+    try {
+      const uploadRes = await uploadImage(result.file);
+      const updated = await updateFlyer(currentFlyer.id, {
+        flyerImageUrl: uploadRes.url,
+        aspectRatio: result.aspectRatio,
+      });
+      if (onFlyerUpdated) {
+        onFlyerUpdated(updated);
+      }
+      toast.success(
+        `Circular formatted to ${result.width} × ${result.height} px (9:16 Mobile Standard)!`
+      );
+    } catch (err: any) {
+      toast.error(`Failed to update circular image: ${err.message}`);
+    }
+  };
 
   // If a flyerId is selected, automatically set the store context
   useEffect(() => {
@@ -315,34 +352,44 @@ export function EditorView({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {storeFlyers.map((flyer) => (
-              <Card
-                key={flyer.id}
-                onClick={() => onSelectFlyer(flyer.id)}
-                className="group cursor-pointer overflow-hidden border hover:border-primary/60 transition-all hover:shadow-md flex flex-col"
-              >
-                <div className="aspect-[4/5] bg-muted/30 overflow-hidden relative border-b">
-                  <img
-                    src={resolveImageUrl(flyer.flyerImageUrl)}
-                    alt={flyer.title}
-                    className="h-full w-full object-cover group-hover:scale-102 transition-transform duration-300"
-                  />
-                  <div className="absolute top-2.5 right-2.5">
-                    <Badge variant="default" className="text-[10px] bg-primary">
-                      {flyer.hotspots?.length || 0} Hotspots
-                    </Badge>
+            {storeFlyers.map((flyer) => {
+              const expiry = getFlyerExpiryInfo(flyer);
+              return (
+                <Card
+                  key={flyer.id}
+                  onClick={() => onSelectFlyer(flyer.id)}
+                  className={`group cursor-pointer overflow-hidden border hover:border-primary/60 transition-all hover:shadow-md flex flex-col ${
+                    expiry.isExpired ? "opacity-80 border-amber-300 dark:border-amber-700/60" : ""
+                  }`}
+                >
+                  <div className="aspect-[4/5] bg-muted/30 overflow-hidden relative border-b">
+                    <img
+                      src={resolveImageUrl(flyer.flyerImageUrl)}
+                      alt={flyer.title}
+                      className="h-full w-full object-cover group-hover:scale-102 transition-transform duration-300"
+                    />
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                      <Badge variant={expiry.badgeVariant} className="text-[10px] font-semibold shadow-xs">
+                        {expiry.badgeLabel}
+                      </Badge>
+                    </div>
+                    <div className="absolute top-2.5 right-2.5">
+                      <Badge variant="default" className="text-[10px] bg-primary">
+                        {flyer.hotspots?.length || 0} Hotspots
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-                <CardHeader className="p-3.5 pb-2">
-                  <CardTitle className="text-sm font-bold truncate">{flyer.title}</CardTitle>
-                  <CardDescription className="text-xs truncate">{flyer.subtitle || "Weekly Circular"}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-3.5 pt-0 mt-auto flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Edit hotspots & canvas</span>
-                  <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                </CardContent>
-              </Card>
-            ))}
+                  <CardHeader className="p-3.5 pb-2">
+                    <CardTitle className="text-sm font-bold truncate">{flyer.title}</CardTitle>
+                    <CardDescription className="text-xs truncate">{flyer.subtitle || "Weekly Circular"}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-3.5 pt-0 mt-auto flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Edit hotspots & canvas</span>
+                    <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -385,10 +432,50 @@ export function EditorView({
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
             {hotspots.length} hotspots
           </Badge>
+          {currentFlyer && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpiryDialogOpen(true)}
+              className="h-6 px-1.5 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+              title="Click to configure validity and expiry dates"
+            >
+              <CalendarClock className="h-3 w-3 text-primary" />
+              {currentFlyer.validTo ? (
+                <span className={isFlyerExpired(currentFlyer) ? "text-amber-600 font-semibold" : ""}>
+                  {isFlyerExpired(currentFlyer) ? "Expired" : "Expires"}: {new Date(currentFlyer.validTo).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              ) : (
+                <span className="italic">No Expiry</span>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCropDialogOpen(true)}
+            className="h-8 gap-1.5 text-xs"
+            title="Reformat or crop flyer image to 9:16 mobile standard (1080 × 1920)"
+          >
+            <Crop className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden sm:inline">Crop / Resize</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setExpiryDialogOpen(true)}
+            className="h-8 gap-1.5 text-xs"
+            title="Configure validity and automatic expiry dates"
+          >
+            <CalendarClock className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden sm:inline">Validity &amp; Expiry</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -410,7 +497,7 @@ export function EditorView({
             size="sm"
             onClick={onSaveToDatabase}
             disabled={isSaving}
-            className="h-8 gap-1.5 text-xs font-semibold"
+            className="h-8 gap-1.5 text-xs font-semibold bg-primary text-primary-foreground shadow-xs"
           >
             {isSaving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -421,6 +508,24 @@ export function EditorView({
           </Button>
         </div>
       </div>
+
+      {/* Expired Flyer Warning Banner */}
+      {currentFlyer && isFlyerExpired(currentFlyer) && (
+        <div className="mx-4 mt-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 shrink-0 text-amber-600" />
+            <span>This flyer has expired and is currently hidden from shoppers. Update the expiry date to make it visible.</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setExpiryDialogOpen(true)}
+            className="h-6 px-2.5 text-[11px] font-semibold bg-background hover:bg-muted border-amber-300 dark:border-amber-700 shrink-0"
+          >
+            Configure Expiry / Extend
+          </Button>
+        </div>
+      )}
 
       {/* Main Studio Body: 3-column layout */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -897,6 +1002,27 @@ export function EditorView({
           toast.success(`"${newProd.name}" ready to place! Click & drag a rectangle on the flyer.`);
         }}
       />
+
+      {/* Flyer Expiry Configuration Dialog */}
+      <FlyerExpiryDialog
+        flyer={currentFlyer || null}
+        open={expiryDialogOpen}
+        onOpenChange={setExpiryDialogOpen}
+        onFlyerUpdated={(updated) => {
+          if (onFlyerUpdated) onFlyerUpdated(updated);
+        }}
+      />
+
+      {/* Flyer Mobile Crop & Resize Dialog */}
+      {currentFlyer && (
+        <FlyerCropDialog
+          open={cropDialogOpen}
+          onOpenChange={setCropDialogOpen}
+          imageSource={resolveImageUrl(currentFlyer.flyerImageUrl)}
+          initialFilename={`${currentFlyer.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.jpg`}
+          onApplyCrop={handleApplyCrop}
+        />
+      )}
     </div>
   );
 }

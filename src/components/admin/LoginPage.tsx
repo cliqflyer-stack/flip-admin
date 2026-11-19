@@ -39,6 +39,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/admin/ThemeToggle";
+import { BrandLogo, BrandIcon } from "@/components/ui/BrandLogo";
 import { DEMO_CREDENTIALS, useAuth } from "@/lib/auth-context";
 
 interface LoginPageProps {
@@ -131,17 +132,15 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
         {/* Top brand header */}
         <div className="relative z-10 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-lg shadow-sm transition-transform group-hover:scale-105">
-              F
-            </div>
+            <BrandIcon className="h-10 w-10 transition-transform group-hover:scale-105" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight">Flip Studio</span>
+                <BrandLogo className="h-6 w-auto" />
                 <Badge variant="secondary" className="text-[10px] uppercase font-semibold tracking-wider">
                   Enterprise
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">Interactive Digital Circulars & Retail Media</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Interactive Digital Circulars & Retail Media</p>
             </div>
           </Link>
 
@@ -292,11 +291,9 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
         <div className="w-full max-w-md mx-auto my-auto py-8 space-y-6">
           {/* Mobile Header (Shown on mobile/tablet) */}
           <div className="lg:hidden text-center space-y-2">
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-lg shadow-sm">
-              F
-            </div>
+            <BrandIcon className="mx-auto h-11 w-11" />
             <div className="flex items-center justify-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight">Flip Studio</h1>
+              <BrandLogo className="h-6 w-auto" />
               <Badge variant="secondary" className="text-[10px] uppercase font-semibold">
                 Admin
               </Badge>

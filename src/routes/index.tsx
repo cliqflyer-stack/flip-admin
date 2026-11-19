@@ -37,6 +37,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/admin/ThemeToggle";
+import { BrandLogo, BrandIcon } from "@/components/ui/BrandLogo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -258,11 +259,9 @@ function Index() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-base shadow-xs transition-transform group-hover:scale-105">
-                F
-              </div>
+              <BrandIcon className="h-9 w-9 transition-transform group-hover:scale-105" />
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-lg tracking-tight">Flip</span>
+                <BrandLogo className="h-6 w-auto" />
                 <Badge variant="secondary" className="text-[10px] uppercase font-semibold tracking-wider">
                   Studio
                 </Badge>
@@ -775,12 +774,10 @@ function Index() {
       <footer className="border-t border-border bg-background py-12 text-xs text-muted-foreground">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black text-sm">
-              F
-            </div>
+            <BrandIcon className="h-8 w-8" />
             <div>
-              <span className="font-bold text-foreground">Flip Retail Media</span>
-              <p className="text-[11px] text-muted-foreground">Next-Gen Digital Circular & Hotspot Management Suite</p>
+              <BrandLogo className="h-5 w-auto" />
+              <p className="text-[11px] text-muted-foreground mt-0.5">Next-Gen Digital Circular & Hotspot Management Suite</p>
             </div>
           </div>
 

@@ -39,6 +39,9 @@ import {
   createFlyer,
   saveHotspotsBatch,
   resolveImageUrl,
+  getRelativeDateString,
+  toEndOfDayIso,
+  toStartOfDayIso,
   type ApiFlyer,
   type ApiProduct,
   type Merchant,
@@ -65,6 +68,8 @@ export function TemplatesView({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [selectedMerchantId, setSelectedMerchantId] = useState("");
+  const [validFrom, setValidFrom] = useState("");
+  const [validTo, setValidTo] = useState(getRelativeDateString(7));
   const [isInstantiating, setIsInstantiating] = useState(false);
 
   const categories = ["all", "Grocery", "Pharmacy", "Hardware", "Retail"];
@@ -83,6 +88,8 @@ export function TemplatesView({
     setActiveTemplate(tpl);
     setNewTitle(`${tpl.title} — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`);
     setSelectedMerchantId(tpl.defaultMerchantId || (merchants[0]?.id ?? "merch_longos"));
+    setValidFrom("");
+    setValidTo(getRelativeDateString(7));
     setDialogOpen(true);
   };
 
@@ -102,6 +109,8 @@ export function TemplatesView({
         aspectRatio: activeTemplate.aspectRatio,
         status: "published",
         pageCount: 1,
+        validFrom: validFrom ? toStartOfDayIso(validFrom) : undefined,
+        validTo: validTo ? toEndOfDayIso(validTo) : undefined,
       });
 
       // 2. Map preset hotspots to catalog products
@@ -135,12 +144,12 @@ export function TemplatesView({
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto w-full">
       {/* Templates Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Flyer Templates & Blueprints</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Flyer Templates &amp; Blueprints</h1>
             <Badge variant="secondary" className="text-xs font-semibold">
               {TEMPLATES_LIBRARY.length} Ready
             </Badge>
@@ -355,6 +364,36 @@ export function TemplatesView({
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1">
+                <Label htmlFor="tpl-valid-from" className="text-xs font-medium text-muted-foreground">
+                  Valid From
+                </Label>
+                <Input
+                  id="tpl-valid-from"
+                  type="date"
+                  value={validFrom}
+                  onChange={(e) => setValidFrom(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="tpl-valid-to" className="text-xs font-medium text-muted-foreground">
+                  Expiry Date
+                </Label>
+                <Input
+                  id="tpl-valid-to"
+                  type="date"
+                  value={validTo}
+                  onChange={(e) => setValidTo(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              After expiry date, the circular automatically disappears from customer feeds.
+            </p>
 
             {activeTemplate && (
               <div className="rounded-lg bg-muted/60 p-3 text-xs space-y-1.5 border">

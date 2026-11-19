@@ -56,9 +56,9 @@ export function SettingsView() {
   };
 
   return (
-    <div className="space-y-6 p-6 max-w-4xl">
+    <div className="space-y-6 p-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Settings &amp; Preferences</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           Appearance, backend API endpoints, and administrator profile.
         </p>
