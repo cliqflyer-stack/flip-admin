@@ -75,8 +75,11 @@ export function ProductSheet({
   };
 
   return (
-    <Drawer open={isOpen} onOpenChange={handleOpenChange}>
-      <DrawerContent className="mx-auto max-w-md bg-background border-t">
+    <Drawer open={isOpen} onOpenChange={handleOpenChange} modal={false}>
+      <DrawerContent
+        hideOverlay
+        className="mx-auto max-w-md bg-background/95 backdrop-blur-md border border-b-0 border-border/80 shadow-[0_-12px_36px_rgba(0,0,0,0.14)] rounded-t-2xl"
+      >
         <DrawerHeader className="text-left pb-2">
           <DrawerDescription asChild>
             <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">

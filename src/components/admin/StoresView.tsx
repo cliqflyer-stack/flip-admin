@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Check,
+  CheckSquare,
   ChevronsUpDown,
   Edit2,
   Eye,
@@ -12,6 +13,7 @@ import {
   Phone,
   Plus,
   Search,
+  Square,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -36,6 +38,7 @@ import {
   type Merchant,
   type StoreLocation,
 } from "@/lib/api-client";
+import { MultiStoreMapView } from "./MultiStoreMapView";
 
 interface StoresViewProps {
   merchants: Merchant[];
@@ -63,9 +66,41 @@ export function StoresView({
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("all");
   const [brandOpen, setBrandOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [selectedMapStoreId, setSelectedMapStoreId] = useState<string>(
-    storeLocations[0]?.id || ""
-  );
+  // Multi-pin selection: Set of selected store IDs
+  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    storeLocations.forEach((s) => {
+      if (s.latitude && s.longitude) initial.add(s.id);
+    });
+    return initial;
+  });
+
+  // Auto-select stores when storeLocations load
+  useEffect(() => {
+    if (storeLocations.length > 0) {
+      setSelectedStoreIds((prev) => {
+        if (prev.size > 0) return prev;
+        const initial = new Set<string>();
+        storeLocations.forEach((s) => {
+          if (s.latitude && s.longitude) initial.add(s.id);
+        });
+        return initial;
+      });
+    }
+  }, [storeLocations]);
+
+  // Toggle selection on click: multiple can be selected, click on selected will unselect
+  const handleToggleStore = (storeId: string) => {
+    setSelectedStoreIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(storeId)) {
+        next.delete(storeId);
+      } else {
+        next.add(storeId);
+      }
+      return next;
+    });
+  };
 
   const selectedMerchant = merchants.find((m) => m.id === selectedMerchantId);
 
@@ -84,6 +119,18 @@ export function StoresView({
 
     return matchesSearch && matchesMerchant;
   });
+
+  const handleSelectAll = () => {
+    const next = new Set<string>();
+    filtered.forEach((s) => {
+      if (s.latitude && s.longitude) next.add(s.id);
+    });
+    setSelectedStoreIds(next);
+  };
+
+  const handleClearAll = () => {
+    setSelectedStoreIds(new Set());
+  };
 
   // Reset pagination when search or filter changes
   useEffect(() => {
@@ -120,9 +167,6 @@ export function StoresView({
       toast.error(`Could not delete location: ${err.message}`);
     }
   };
-
-  const selectedMapStore =
-    filtered.find((l) => l.id === selectedMapStoreId) || filtered[0] || storeLocations[0];
 
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto w-full">
@@ -453,47 +497,136 @@ export function StoresView({
       {/* Map View */}
       {viewMode === "map" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-2 max-h-[600px] overflow-y-auto pr-2">
-            {filtered.map((loc) => {
-              const merch = merchants.find((m) => m.id === loc.merchantId);
-              const isSelected = selectedMapStore?.id === loc.id;
-              return (
-                <div
-                  key={loc.id}
-                  onClick={() => setSelectedMapStoreId(loc.id)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/5 shadow-xs"
-                      : "hover:border-foreground/30 bg-card"
-                  }`}
+          <div className="lg:col-span-1 space-y-3">
+            {/* Multi-Pin Controls Header */}
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-2xs">
+              <div>
+                <span className="text-xs font-bold text-foreground">
+                  {selectedStoreIds.size} of {filtered.filter((s) => s.latitude && s.longitude).length} Pins Selected
+                </span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Click a store to toggle pin on map
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleSelectAll}
+                  className="h-7 px-2 text-xs text-primary font-semibold hover:bg-primary/10"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-xs text-foreground">{loc.name}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {merch?.name}
-                    </Badge>
+                  Select All
+                </Button>
+                {selectedStoreIds.size > 0 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleClearAll}
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Store List with Toggle Checkbox & Pin indicator */}
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              {filtered.map((loc) => {
+                const merch = merchants.find((m) => m.id === loc.merchantId) || loc.merchant;
+                const isSelected = selectedStoreIds.has(loc.id);
+                const hasCoords =
+                  loc.latitude !== undefined &&
+                  loc.longitude !== undefined &&
+                  loc.latitude !== null &&
+                  loc.longitude !== null;
+
+                return (
+                  <div
+                    key={loc.id}
+                    onClick={() => handleToggleStore(loc.id)}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all select-none ${
+                      isSelected
+                        ? "border-primary bg-primary/5 shadow-xs"
+                        : "hover:border-foreground/30 bg-card opacity-75"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {/* Checkbox / Pin Indicator */}
+                        <div
+                          className={`h-5 w-5 rounded flex items-center justify-center shrink-0 text-xs transition-colors ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                              : "border border-muted-foreground/40 text-muted-foreground"
+                          }`}
+                        >
+                          {isSelected ? (
+                            <Check className="h-3.5 w-3.5 stroke-[3]" />
+                          ) : (
+                            <MapPin className="h-3 w-3 opacity-60" />
+                          )}
+                        </div>
+
+                        <div className="truncate">
+                          <span
+                            className={`font-semibold text-xs truncate block ${
+                              isSelected ? "text-foreground font-bold" : "text-muted-foreground"
+                            }`}
+                          >
+                            {loc.name}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] shrink-0"
+                        style={{
+                          backgroundColor: isSelected ? `${merch?.logoBg || "#075E50"}15` : undefined,
+                          borderColor: isSelected ? merch?.logoBg || "#075E50" : undefined,
+                          color: isSelected ? merch?.logoBg || "#075E50" : undefined,
+                        }}
+                      >
+                        {merch?.name || "Store"}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-2 pl-7 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span className="truncate">
+                        {loc.address}, {loc.city}
+                      </span>
+                      {hasCoords ? (
+                        <span
+                          className={`shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                            isSelected
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {isSelected ? "Pin on map" : "Click to pin"}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-amber-600">No GPS</span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    {loc.address}, {loc.city}
-                  </p>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
-          <div className="lg:col-span-2 rounded-lg border overflow-hidden min-h-[500px] bg-muted relative">
-            {selectedMapStore?.latitude && selectedMapStore?.longitude ? (
-              <iframe
-                title="Interactive Map View"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedMapStore.longitude - 0.02}%2C${selectedMapStore.latitude - 0.015}%2C${selectedMapStore.longitude + 0.02}%2C${selectedMapStore.latitude + 0.015}&layer=mapnik&marker=${selectedMapStore.latitude}%2C${selectedMapStore.longitude}`}
-                className="w-full h-full min-h-[500px] border-0"
-                loading="lazy"
-              />
-            ) : (
-              <div className="h-full min-h-[500px] flex items-center justify-center text-xs text-muted-foreground">
-                Select a store location with GPS coordinates
-              </div>
-            )}
+          {/* Interactive Multi-Pin Map */}
+          <div className="lg:col-span-2">
+            <MultiStoreMapView
+              stores={filtered}
+              selectedStoreIds={selectedStoreIds}
+              onToggleStore={handleToggleStore}
+              onSelectAll={handleSelectAll}
+              merchants={merchants}
+              className="w-full h-full min-h-[580px] rounded-lg border overflow-hidden relative shadow-xs"
+            />
           </div>
         </div>
       )}

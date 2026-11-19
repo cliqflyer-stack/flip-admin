@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Konva from "konva";
-import { Ellipse, Image as KonvaImage, Layer, Rect, Stage } from "react-konva";
+import { Group, Image as KonvaImage, Layer, Line, Rect, Stage } from "react-konva";
 import { Minus, Maximize, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -27,8 +27,45 @@ const MAX_ZOOM = 4;
 const HIT_FILL = "rgba(255,255,255,0.001)";
 
 /**
+ * Generates organic, hand-drawn marker ring loop points.
+ * Simulates a shopper circling a deal with a yellow felt highlighter:
+ * - Starts at ~10 o'clock (top-left)
+ * - Sweeps ~402 degrees clockwise with natural hand curvature wobbles
+ * - Overlaps past the starting point with a slight organic flare
+ */
+function createSketchedRingPoints(rx: number, ry: number): number[] {
+  const points: number[] = [];
+  const numSteps = 52;
+  const startAngle = -2.25; // ~10 o'clock
+  const totalAngle = Math.PI * 2 + 0.72; // ~402 degrees of sweep
+
+  for (let i = 0; i <= numSteps; i++) {
+    const t = i / numSteps;
+    const angle = startAngle + t * totalAngle;
+
+    // Organic imperfections: gentle harmonic wobbles resembling natural hand movement
+    const wobble1 = Math.sin(angle * 2.5) * 0.032;
+    const wobble2 = Math.cos(angle * 4.2) * 0.018;
+    const wobble3 = Math.sin(angle * 7.1) * 0.01;
+    const totalWobble = wobble1 + wobble2 + wobble3;
+
+    // Overlapping tail flare (when looping past 360 degrees)
+    const overlapProgress = Math.max(0, (t - 0.78) / 0.22);
+    const tailFlare = overlapProgress * 0.07;
+
+    const curRx = rx * (1 + totalWobble + tailFlare);
+    const curRy = ry * (1 + totalWobble * 0.85 + tailFlare);
+
+    const x = Math.cos(angle) * curRx;
+    const y = Math.sin(angle) * curRy;
+    points.push(Math.round(x * 100) / 100, Math.round(y * 100) / 100);
+  }
+  return points;
+}
+
+/**
  * Customer-side viewer: zoom/pan the flyer, tap a product to select it
- * (animated circular red highlight) or tap empty space to deselect.
+ * (sketched yellow marker ring highlight) or tap empty space to deselect.
  */
 export default function FlyerPreviewCanvas({
   imageUrl,
@@ -40,7 +77,9 @@ export default function FlyerPreviewCanvas({
 }: FlyerPreviewCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
-  const highlightRef = useRef<Konva.Ellipse>(null);
+  const highlightGroupRef = useRef<Konva.Group>(null);
+  const mainLineRef = useRef<Konva.Line>(null);
+  const glowLineRef = useRef<Konva.Line>(null);
   const panRef = useRef({ active: false, moved: 0, lastX: 0, lastY: 0 });
   const [containerWidth, setContainerWidth] = useState(0);
   const [view, setView] = useState<ViewState>({ scale: 1, x: 0, y: 0 });
@@ -92,33 +131,93 @@ export default function FlyerPreviewCanvas({
     });
   };
 
-  // Animated circular highlight: pop-in tween + slowly marching dashes.
+  const selectedHotspot = hotspots.find((h) => h.id === selectedHotspotId) ?? null;
+
+  // Calculate sketched ring geometry around selected hotspot
+  const hsWidth = selectedHotspot ? selectedHotspot.width * stageWidth : 0;
+  const hsHeight = selectedHotspot ? selectedHotspot.height * stageHeight : 0;
+  const hsCenterX = selectedHotspot
+    ? (selectedHotspot.x + selectedHotspot.width / 2) * stageWidth
+    : 0;
+  const hsCenterY = selectedHotspot
+    ? (selectedHotspot.y + selectedHotspot.height / 2) * stageHeight
+    : 0;
+
+  // Responsive radii with comfortable padding around the deal
+  const rawRx = Math.max((hsWidth / 2) * 1.22, 28);
+  const rawRy = Math.max((hsHeight / 2) * 1.20, 28);
+  // Balance aspect ratio so it remains an organic oval rather than an extreme sliver
+  const ringRx = Math.max(rawRx, rawRy * 0.55);
+  const ringRy = Math.max(rawRy, rawRx * 0.55);
+
+  const ringPoints = useMemo(() => {
+    if (!selectedHotspot || stageWidth <= 0) return [];
+    return createSketchedRingPoints(ringRx, ringRy);
+  }, [selectedHotspot?.id, ringRx, ringRy, stageWidth]);
+
+  // Sketched marker ring animation: quick organic draw-on (~260ms) + settle into solid sketched ring
   useEffect(() => {
-    const node = highlightRef.current;
-    if (!node || !selectedHotspotId) return;
-    node.opacity(0);
-    node.scale({ x: 0.55, y: 0.55 });
-    const tween = new Konva.Tween({
-      node,
+    const group = highlightGroupRef.current;
+    const mainLine = mainLineRef.current;
+    const glowLine = glowLineRef.current;
+    if (!group || !selectedHotspotId || ringPoints.length === 0) return;
+
+    // Approximate loop perimeter for the draw-in stroke
+    const approxLength = Math.PI * (ringRx + ringRy) * 1.25;
+
+    // Set initial stroke-dash for the hand-drawn circling effect
+    if (mainLine) {
+      mainLine.dash([approxLength, approxLength]);
+      mainLine.dashOffset(approxLength);
+    }
+    if (glowLine) {
+      glowLine.dash([approxLength, approxLength]);
+      glowLine.dashOffset(approxLength);
+    }
+
+    group.opacity(0);
+    group.scale({ x: 0.92, y: 0.92 });
+
+    const scaleTween = new Konva.Tween({
+      node: group,
       opacity: 1,
       scaleX: 1,
       scaleY: 1,
-      duration: 0.4,
+      duration: 0.28,
       easing: Konva.Easings.BackEaseOut,
     });
-    tween.play();
-    const start = performance.now();
+    scaleTween.play();
+
+    const startTime = performance.now();
+    const drawDuration = 260; // ms: fast energetic pen circling
     let raf = 0;
-    const march = (time: number) => {
-      node.dashOffset(-(((time - start) / 50) % 34));
-      raf = requestAnimationFrame(march);
+
+    const animateStroke = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / drawDuration);
+      // Ease out cubic for a natural hand stroke that decelerates as the pen lifts
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const currentOffset = approxLength * (1 - ease);
+
+      if (mainLine) mainLine.dashOffset(currentOffset);
+      if (glowLine) glowLine.dashOffset(currentOffset);
+
+      if (progress < 1) {
+        raf = requestAnimationFrame(animateStroke);
+      } else {
+        // Drawing complete: settle into solid sketched line (no marching dots!)
+        if (mainLine) mainLine.dash([]);
+        if (glowLine) glowLine.dash([]);
+      }
     };
-    raf = requestAnimationFrame(march);
+
+    raf = requestAnimationFrame(animateStroke);
+
     return () => {
-      tween.destroy();
+      scaleTween.destroy();
       cancelAnimationFrame(raf);
     };
-  }, [selectedHotspotId]);
+  }, [selectedHotspotId, ringRx, ringRy, ringPoints]);
 
   const handleWheel = (event: Konva.KonvaEventObject<WheelEvent>) => {
     event.evt.preventDefault();
@@ -160,8 +259,6 @@ export default function FlyerPreviewCanvas({
     }
   };
 
-  const selectedHotspot = hotspots.find((h) => h.id === selectedHotspotId) ?? null;
-
   return (
     <div ref={containerRef} className="relative w-full select-none">
       {image && stageWidth > 0 && (
@@ -202,28 +299,38 @@ export default function FlyerPreviewCanvas({
                 }}
               />
             ))}
-            {selectedHotspot && (
-              <Ellipse
-                ref={highlightRef}
-                x={(selectedHotspot.x + selectedHotspot.width / 2) * stageWidth}
-                y={(selectedHotspot.y + selectedHotspot.height / 2) * stageHeight}
-                radiusX={
-                  (Math.max(selectedHotspot.width * stageWidth, selectedHotspot.height * stageHeight) /
-                    2) *
-                  1.18
-                }
-                radiusY={
-                  (Math.max(selectedHotspot.width * stageWidth, selectedHotspot.height * stageHeight) /
-                    2) *
-                  1.18
-                }
-                stroke="#dc2626"
-                strokeWidth={Math.max(3, stageWidth / 220)}
-                dash={[10, 7]}
-                fill="rgba(220,38,38,0.10)"
+            {selectedHotspot && ringPoints.length > 0 && (
+              <Group
+                ref={highlightGroupRef}
+                x={hsCenterX}
+                y={hsCenterY}
                 listening={false}
-                perfectDrawEnabled={false}
-              />
+              >
+                {/* Under-glow: soft yellow highlighter ink bleed */}
+                <Line
+                  ref={glowLineRef}
+                  points={ringPoints}
+                  stroke="rgba(250, 204, 21, 0.28)"
+                  strokeWidth={Math.max(7, Math.min(11, stageWidth / 50))}
+                  tension={0.36}
+                  lineCap="round"
+                  lineJoin="round"
+                  closed={false}
+                  listening={false}
+                />
+                {/* Main hand-drawn highlighter stroke */}
+                <Line
+                  ref={mainLineRef}
+                  points={ringPoints}
+                  stroke="#FACC15"
+                  strokeWidth={Math.max(4, Math.min(6, stageWidth / 85))}
+                  tension={0.36}
+                  lineCap="round"
+                  lineJoin="round"
+                  closed={false}
+                  listening={false}
+                />
+              </Group>
             )}
           </Layer>
         </Stage>

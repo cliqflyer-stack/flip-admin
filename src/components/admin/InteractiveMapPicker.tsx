@@ -1,14 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-
-// Fix standard Leaflet default icon path in bundlers like Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
+import type L from "leaflet";
 
 interface InteractiveMapPickerProps {
   latitude?: number | null;
@@ -32,37 +23,57 @@ export function InteractiveMapPicker({
   const initialLng = longitude && !isNaN(longitude) ? longitude : -79.337;
 
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    if (typeof window === "undefined" || !mapContainerRef.current) return;
+    let isCancelled = false;
 
-    if (!mapInstanceRef.current) {
-      const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], 13);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(map);
+    async function init() {
+      const leafletModule = await import("leaflet");
+      await import("leaflet/dist/leaflet.css");
+      const L = (leafletModule.default || leafletModule) as typeof import("leaflet");
 
-      const marker = L.marker([initialLat, initialLng], {
-        draggable: true,
-      }).addTo(map);
+      if (isCancelled || !mapContainerRef.current) return;
 
-      // On marker drag
-      marker.on("dragend", () => {
-        const pos = marker.getLatLng();
-        onChange(Number(pos.lat.toFixed(6)), Number(pos.lng.toFixed(6)));
+      // Fix standard Leaflet default icon path in bundlers like Vite
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      // On map click
-      map.on("click", (e: L.LeafletMouseEvent) => {
-        const { lat, lng } = e.latlng;
-        marker.setLatLng([lat, lng]);
-        onChange(Number(lat.toFixed(6)), Number(lng.toFixed(6)));
-      });
+      if (!mapInstanceRef.current) {
+        const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+        }).addTo(map);
 
-      mapInstanceRef.current = map;
-      markerRef.current = marker;
+        const marker = L.marker([initialLat, initialLng], {
+          draggable: true,
+        }).addTo(map);
+
+        // On marker drag
+        marker.on("dragend", () => {
+          const pos = marker.getLatLng();
+          onChange(Number(pos.lat.toFixed(6)), Number(pos.lng.toFixed(6)));
+        });
+
+        // On map click
+        map.on("click", (e: L.LeafletMouseEvent) => {
+          const { lat, lng } = e.latlng;
+          marker.setLatLng([lat, lng]);
+          onChange(Number(lat.toFixed(6)), Number(lng.toFixed(6)));
+        });
+
+        mapInstanceRef.current = map;
+        markerRef.current = marker;
+      }
     }
 
+    init();
+
     return () => {
+      isCancelled = true;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
