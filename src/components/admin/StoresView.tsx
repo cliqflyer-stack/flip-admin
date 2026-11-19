@@ -44,6 +44,7 @@ interface StoresViewProps {
   merchants: Merchant[];
   storeLocations: StoreLocation[];
   flyers: ApiFlyer[];
+  initialMerchantId?: string;
   onNavigateToAddStore: () => void;
   onNavigateToEditStore: (storeId: string) => void;
   onLocationDeleted: (id: string) => void;
@@ -56,6 +57,7 @@ export function StoresView({
   merchants,
   storeLocations,
   flyers,
+  initialMerchantId,
   onNavigateToAddStore,
   onNavigateToEditStore,
   onLocationDeleted,
@@ -63,7 +65,13 @@ export function StoresView({
 }: StoresViewProps) {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [search, setSearch] = useState("");
-  const [selectedMerchantId, setSelectedMerchantId] = useState<string>("all");
+  const [selectedMerchantId, setSelectedMerchantId] = useState<string>(initialMerchantId || "all");
+
+  useEffect(() => {
+    if (initialMerchantId) {
+      setSelectedMerchantId(initialMerchantId);
+    }
+  }, [initialMerchantId]);
   const [brandOpen, setBrandOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   // Multi-pin selection: Set of selected store IDs
@@ -114,8 +122,7 @@ export function StoresView({
       loc.address.toLowerCase().includes(search.toLowerCase()) ||
       (loc.postalCode && loc.postalCode.toLowerCase().includes(search.toLowerCase()));
 
-    const matchesMerchant =
-      selectedMerchantId === "all" || loc.merchantId === selectedMerchantId;
+    const matchesMerchant = selectedMerchantId === "all" || loc.merchantId === selectedMerchantId;
 
     return matchesSearch && matchesMerchant;
   });
@@ -148,7 +155,7 @@ export function StoresView({
           setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length));
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     observer.observe(sentinel);
@@ -248,7 +255,10 @@ export function StoresView({
                       <>
                         <span
                           className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-bold"
-                          style={{ backgroundColor: selectedMerchant.logoBg, color: selectedMerchant.logoColor }}
+                          style={{
+                            backgroundColor: selectedMerchant.logoBg,
+                            color: selectedMerchant.logoColor,
+                          }}
                         >
                           {selectedMerchant.initial}
                         </span>
@@ -299,7 +309,9 @@ export function StoresView({
                             </span>
                             <span className="truncate">{m.name}</span>
                           </div>
-                          {selectedMerchantId === m.id && <Check className="h-3 w-3 text-primary" />}
+                          {selectedMerchantId === m.id && (
+                            <Check className="h-3 w-3 text-primary" />
+                          )}
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -327,7 +339,8 @@ export function StoresView({
               <Card className="col-span-full p-12 text-center border-dashed">
                 <h3 className="font-semibold text-sm">No store locations found</h3>
                 <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                  Add franchise store branches with GPS coordinates so circulars can be targeted geographically.
+                  Add franchise store branches with GPS coordinates so circulars can be targeted
+                  geographically.
                 </p>
                 <Button size="sm" onClick={onNavigateToAddStore} className="mt-4 gap-1.5 text-xs">
                   <Plus className="h-3.5 w-3.5" /> Add Location
@@ -338,7 +351,7 @@ export function StoresView({
                 const merch = merchants.find((m) => m.id === loc.merchantId) || loc.merchant;
                 const specificFlyers = flyers.filter((f) => f.storeLocationId === loc.id);
                 const chainFlyers = flyers.filter(
-                  (f) => f.merchantId === loc.merchantId && !f.storeLocationId
+                  (f) => f.merchantId === loc.merchantId && !f.storeLocationId,
                 );
                 const hasCoords =
                   loc.latitude !== undefined &&
@@ -409,7 +422,8 @@ export function StoresView({
                                 variant="secondary"
                                 className="text-[10px] bg-emerald-500/10 text-emerald-600 font-semibold"
                               >
-                                {specificFlyers.length} Flyer{specificFlyers.length === 1 ? "" : "s"}
+                                {specificFlyers.length} Flyer
+                                {specificFlyers.length === 1 ? "" : "s"}
                               </Badge>
                             )}
                             <Button
@@ -502,7 +516,8 @@ export function StoresView({
             <div className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-2xs">
               <div>
                 <span className="text-xs font-bold text-foreground">
-                  {selectedStoreIds.size} of {filtered.filter((s) => s.latitude && s.longitude).length} Pins Selected
+                  {selectedStoreIds.size} of{" "}
+                  {filtered.filter((s) => s.latitude && s.longitude).length} Pins Selected
                 </span>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   Click a store to toggle pin on map
@@ -584,7 +599,9 @@ export function StoresView({
                         variant="outline"
                         className="text-[9px] shrink-0"
                         style={{
-                          backgroundColor: isSelected ? `${merch?.logoBg || "#075E50"}15` : undefined,
+                          backgroundColor: isSelected
+                            ? `${merch?.logoBg || "#075E50"}15`
+                            : undefined,
                           borderColor: isSelected ? merch?.logoBg || "#075E50" : undefined,
                           color: isSelected ? merch?.logoBg || "#075E50" : undefined,
                         }}

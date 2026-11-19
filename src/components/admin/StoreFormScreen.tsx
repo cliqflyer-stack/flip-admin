@@ -6,11 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -20,6 +16,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { InteractiveMapPicker } from "./InteractiveMapPicker";
+import { FranchiseDialog } from "./FranchiseDialog";
 import {
   createStoreLocation,
   updateStoreLocation,
@@ -33,6 +30,8 @@ import { cn } from "@/lib/utils";
 interface StoreFormScreenProps {
   storeLocation?: StoreLocation | null;
   merchants: Merchant[];
+  initialMerchantId?: string;
+  onFranchiseCreated?: (created: Merchant) => void;
   onSave: (location: StoreLocation, isEdit: boolean) => void;
   onCancel: () => void;
 }
@@ -52,13 +51,15 @@ const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
 export function StoreFormScreen({
   storeLocation,
   merchants,
+  initialMerchantId,
+  onFranchiseCreated,
   onSave,
   onCancel,
 }: StoreFormScreenProps) {
   const isEdit = !!storeLocation;
 
   const [merchantId, setMerchantId] = useState(
-    storeLocation?.merchantId || merchants[0]?.id || ""
+    storeLocation?.merchantId || initialMerchantId || merchants[0]?.id || "",
   );
   const [name, setName] = useState(storeLocation?.name || "");
   const [address, setAddress] = useState(storeLocation?.address || "");
@@ -72,15 +73,16 @@ export function StoreFormScreen({
   const [latitude, setLatitude] = useState<number | null>(
     storeLocation?.latitude !== undefined && storeLocation?.latitude !== null
       ? storeLocation.latitude
-      : 43.8561
+      : 43.8561,
   );
   const [longitude, setLongitude] = useState<number | null>(
     storeLocation?.longitude !== undefined && storeLocation?.longitude !== null
       ? storeLocation.longitude
-      : -79.337
+      : -79.337,
   );
 
   const [brandOpen, setBrandOpen] = useState(false);
+  const [isAddFranchiseOpen, setIsAddFranchiseOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -192,9 +194,20 @@ export function StoreFormScreen({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Brand Combobox */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">
-                  Brand Franchise <span className="text-destructive">*</span>
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">
+                    Brand Franchise <span className="text-destructive">*</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAddFranchiseOpen(true)}
+                    className="h-5 px-1.5 text-[11px] font-medium text-primary hover:text-primary hover:underline"
+                  >
+                    + New Franchise
+                  </Button>
+                </div>
                 <Popover open={brandOpen} onOpenChange={setBrandOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -253,7 +266,7 @@ export function StoreFormScreen({
                               <Check
                                 className={cn(
                                   "h-3.5 w-3.5",
-                                  merchantId === merchant.id ? "opacity-100" : "opacity-0"
+                                  merchantId === merchant.id ? "opacity-100" : "opacity-0",
                                 )}
                               />
                             </CommandItem>
@@ -427,7 +440,8 @@ export function StoreFormScreen({
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">GPS Map Pin & Coordinates</CardTitle>
             <CardDescription className="text-xs">
-              Click anywhere on the map to drop a pin, or enter manual coordinates to position the location.
+              Click anywhere on the map to drop a pin, or enter manual coordinates to position the
+              location.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -445,7 +459,7 @@ export function StoreFormScreen({
                     "rounded-md border px-2 py-0.5 text-[11px] capitalize transition-colors font-medium",
                     city.toLowerCase() === cName
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "bg-muted/40 hover:bg-muted"
+                      : "bg-muted/40 hover:bg-muted",
                   )}
                 >
                   {cName}
@@ -528,11 +542,23 @@ export function StoreFormScreen({
             {isSubmitting
               ? "Saving Location..."
               : isEdit
-              ? "Update Store Location"
-              : "Create Store Location"}
+                ? "Update Store Location"
+                : "Create Store Location"}
           </Button>
         </div>
       </form>
+
+      {/* Quick Add Franchise Modal */}
+      <FranchiseDialog
+        open={isAddFranchiseOpen}
+        onOpenChange={setIsAddFranchiseOpen}
+        onSuccess={(created) => {
+          if (onFranchiseCreated) {
+            onFranchiseCreated(created);
+          }
+          setMerchantId(created.id);
+        }}
+      />
     </div>
   );
 }

@@ -29,6 +29,8 @@ import { DashboardView } from "@/components/admin/DashboardView";
 import { EditorView } from "@/components/admin/EditorView";
 import { TemplatesView } from "@/components/admin/TemplatesView";
 import { StoresView } from "@/components/admin/StoresView";
+import { FranchisesView } from "@/components/admin/FranchisesView";
+import { FranchiseFormScreen } from "@/components/admin/FranchiseFormScreen";
 import { ProductsView } from "@/components/admin/ProductsView";
 import { SettingsView } from "@/components/admin/SettingsView";
 import { UploadFlyerScreen } from "@/components/admin/UploadFlyerScreen";
@@ -42,6 +44,7 @@ export const Route = createFileRoute("/admin")({
     flyerId: (search.flyerId as string) || undefined,
     storeId: (search.storeId as string) || undefined,
     productId: (search.productId as string) || undefined,
+    franchiseId: (search.franchiseId as string) || undefined,
   }),
   head: () => ({
     meta: [
@@ -69,6 +72,7 @@ function AdminContent() {
   const urlFlyerId = searchParams.flyerId;
   const urlStoreId = searchParams.storeId;
   const urlProductId = searchParams.productId;
+  const urlFranchiseId = searchParams.franchiseId;
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [flyersList, setFlyersList] = useState<ApiFlyer[]>([]);
@@ -86,7 +90,12 @@ function AdminContent() {
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
 
   // View navigation helper
-  const handleSelectView = (view: AdminView, targetFlyerId?: string) => {
+  const handleSelectView = (
+    view: AdminView,
+    targetFlyerId?: string,
+    targetFranchiseId?: string,
+    targetStoreId?: string,
+  ) => {
     navigate({
       search: (prev) => {
         const next: Record<string, unknown> = {
@@ -98,7 +107,16 @@ function AdminContent() {
         } else {
           delete next.flyerId;
         }
-        delete next.storeId;
+        if (targetFranchiseId) {
+          next.franchiseId = targetFranchiseId;
+        } else {
+          delete next.franchiseId;
+        }
+        if (targetStoreId) {
+          next.storeId = targetStoreId;
+        } else {
+          delete next.storeId;
+        }
         delete next.productId;
         return next;
       },
@@ -109,17 +127,46 @@ function AdminContent() {
     }
   };
 
+  const handleFranchiseSaved = (saved: Merchant, isEdit: boolean) => {
+    if (isEdit) {
+      setMerchantsList((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));
+      setStoreLocationsList((prev) =>
+        prev.map((loc) => (loc.merchantId === saved.id ? { ...loc, merchant: saved } : loc)),
+      );
+      setFlyersList((prev) =>
+        prev.map((fl) => (fl.merchantId === saved.id ? { ...fl, merchant: saved } : fl)),
+      );
+    } else {
+      setMerchantsList((prev) => [saved, ...prev]);
+    }
+    fetchStats()
+      .then((st) => st && setStats(st))
+      .catch(() => {});
+    handleSelectView("franchises");
+  };
+
+  const handleFranchiseDeleted = (deletedId: string) => {
+    setMerchantsList((prev) => prev.filter((m) => m.id !== deletedId));
+    setStoreLocationsList((prev) => prev.filter((l) => l.merchantId !== deletedId));
+    setFlyersList((prev) => prev.filter((f) => f.merchantId !== deletedId));
+    fetchStats()
+      .then((st) => st && setStats(st))
+      .catch(() => {});
+  };
+
   // Load initial remote data from Neon API
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsData, flyersData, productsData, merchantsData, locationsData] = await Promise.all([
-        fetchStats().catch(() => null),
-        fetchFlyers().catch(() => []),
-        fetchProducts().catch(() => []),
-        fetchMerchants().catch(() => []),
-        fetchStoreLocations().catch(() => []),
-      ]);
+      const [statsData, flyersData, productsData, merchantsData, locationsData] = await Promise.all(
+        [
+          fetchStats().catch(() => null),
+          fetchFlyers().catch(() => []),
+          fetchProducts().catch(() => []),
+          fetchMerchants().catch(() => []),
+          fetchStoreLocations().catch(() => []),
+        ],
+      );
 
       if (statsData) setStats(statsData);
       if (productsData.length > 0) setCatalogProducts(productsData);
@@ -144,7 +191,7 @@ function AdminContent() {
                   height: h.height,
                   priceOverride: h.priceOverride,
                   titleOverride: h.titleOverride,
-                }))
+                })),
               );
             }
           }
@@ -184,7 +231,7 @@ function AdminContent() {
               height: h.height,
               priceOverride: h.priceOverride,
               titleOverride: h.titleOverride,
-            }))
+            })),
           );
         }
       }
@@ -242,7 +289,7 @@ function AdminContent() {
           height: h.height,
           priceOverride: h.priceOverride,
           titleOverride: h.titleOverride,
-        }))
+        })),
       );
     } else {
       setHotspots([]);
@@ -354,6 +401,9 @@ function AdminContent() {
   const currentFlyer = flyersList.find((f) => f.id === selectedFlyerId);
   const storeToEdit = urlStoreId ? storeLocationsList.find((s) => s.id === urlStoreId) : null;
   const productToEdit = urlProductId ? catalogProducts.find((p) => p.id === urlProductId) : null;
+  const franchiseToEdit = urlFranchiseId
+    ? merchantsList.find((m) => m.id === urlFranchiseId) || null
+    : null;
 
   // 3. Authenticated: Render Admin Portal
   return (
@@ -364,6 +414,7 @@ function AdminContent() {
         flyersCount={flyersList.length}
         productsCount={catalogProducts.length}
         storeLocationsCount={storeLocationsList.length}
+        merchantsCount={merchantsList.length}
       />
 
       <SidebarInset className="flex flex-col flex-1 min-w-0 bg-background overflow-hidden">
@@ -380,6 +431,8 @@ function AdminContent() {
             <DashboardView
               stats={stats}
               flyers={flyersList}
+              merchantsCount={merchantsList.length}
+              storeLocationsCount={storeLocationsList.length}
               loading={loading}
               onSelectFlyerToEdit={(id) => {
                 handleSelectFlyer(id);
@@ -398,6 +451,7 @@ function AdminContent() {
             <UploadFlyerScreen
               merchants={merchantsList}
               storeLocations={storeLocationsList}
+              onFranchiseCreated={(created) => setMerchantsList((prev) => [created, ...prev])}
               onFlyerCreated={(created) => {
                 setFlyersList((prev) => [created, ...prev]);
                 handleSelectFlyer(created.id);
@@ -465,11 +519,56 @@ function AdminContent() {
             />
           )}
 
+          {currentView === "franchises" && (
+            <FranchisesView
+              merchants={merchantsList}
+              storeLocations={storeLocationsList}
+              flyers={flyersList}
+              onNavigateToAddFranchise={() => handleSelectView("add-franchise")}
+              onNavigateToEditFranchise={(id) =>
+                navigate({
+                  search: (prev) => ({ ...prev, view: "edit-franchise", franchiseId: id }),
+                  replace: true,
+                })
+              }
+              onNavigateToStoresForFranchise={(franchiseId) =>
+                navigate({
+                  search: (prev) => ({ ...prev, view: "stores", franchiseId }),
+                  replace: true,
+                })
+              }
+              onNavigateToAddStoreForFranchise={(franchiseId) =>
+                navigate({
+                  search: (prev) => ({ ...prev, view: "add-store", franchiseId }),
+                  replace: true,
+                })
+              }
+              onFranchiseDeleted={handleFranchiseDeleted}
+              loading={loading}
+            />
+          )}
+
+          {currentView === "add-franchise" && (
+            <FranchiseFormScreen
+              onSave={handleFranchiseSaved}
+              onCancel={() => handleSelectView("franchises")}
+            />
+          )}
+
+          {currentView === "edit-franchise" && (
+            <FranchiseFormScreen
+              franchise={franchiseToEdit}
+              onSave={handleFranchiseSaved}
+              onCancel={() => handleSelectView("franchises")}
+            />
+          )}
+
           {currentView === "stores" && (
             <StoresView
               merchants={merchantsList}
               storeLocations={storeLocationsList}
               flyers={flyersList}
+              initialMerchantId={urlFranchiseId}
               onNavigateToAddStore={() => handleSelectView("add-store")}
               onNavigateToEditStore={(id) =>
                 navigate({
@@ -477,7 +576,9 @@ function AdminContent() {
                   replace: true,
                 })
               }
-              onLocationDeleted={(id) => setStoreLocationsList((prev) => prev.filter((l) => l.id !== id))}
+              onLocationDeleted={(id) =>
+                setStoreLocationsList((prev) => prev.filter((l) => l.id !== id))
+              }
               loading={loading}
             />
           )}
@@ -485,6 +586,8 @@ function AdminContent() {
           {currentView === "add-store" && (
             <StoreFormScreen
               merchants={merchantsList}
+              initialMerchantId={urlFranchiseId}
+              onFranchiseCreated={(created) => setMerchantsList((prev) => [created, ...prev])}
               onSave={(created) => {
                 setStoreLocationsList((prev) => [created, ...prev]);
                 handleSelectView("stores");
@@ -497,9 +600,11 @@ function AdminContent() {
             <StoreFormScreen
               storeLocation={storeToEdit}
               merchants={merchantsList}
+              initialMerchantId={urlFranchiseId}
+              onFranchiseCreated={(created) => setMerchantsList((prev) => [created, ...prev])}
               onSave={(updated) => {
                 setStoreLocationsList((prev) =>
-                  prev.map((s) => (s.id === updated.id ? updated : s))
+                  prev.map((s) => (s.id === updated.id ? updated : s)),
                 );
                 handleSelectView("stores");
               }}
@@ -541,9 +646,7 @@ function AdminContent() {
               product={productToEdit}
               merchants={merchantsList}
               onSave={(updated) => {
-                setCatalogProducts((prev) =>
-                  prev.map((p) => (p.id === updated.id ? updated : p))
-                );
+                setCatalogProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
                 handleSelectView("products");
               }}
               onCancel={() => handleSelectView("products")}

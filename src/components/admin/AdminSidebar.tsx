@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Building2,
   ExternalLink,
   Eye,
   FileText,
@@ -47,6 +48,9 @@ export type AdminView =
   | "flyers"
   | "upload-flyer"
   | "templates"
+  | "franchises"
+  | "add-franchise"
+  | "edit-franchise"
   | "stores"
   | "add-store"
   | "edit-store"
@@ -61,6 +65,7 @@ interface AdminSidebarProps {
   flyersCount?: number;
   productsCount?: number;
   storeLocationsCount?: number;
+  merchantsCount?: number;
 }
 
 export function AdminSidebar({
@@ -69,11 +74,18 @@ export function AdminSidebar({
   flyersCount = 0,
   productsCount = 0,
   storeLocationsCount = 0,
+  merchantsCount = 0,
 }: AdminSidebarProps) {
   const { user, logout } = useAuth();
 
-  const isStoresActive = currentView === "stores" || currentView === "add-store" || currentView === "edit-store";
-  const isProductsActive = currentView === "products" || currentView === "add-product" || currentView === "edit-product";
+  const isFranchisesActive =
+    currentView === "franchises" ||
+    currentView === "add-franchise" ||
+    currentView === "edit-franchise";
+  const isStoresActive =
+    currentView === "stores" || currentView === "add-store" || currentView === "edit-store";
+  const isProductsActive =
+    currentView === "products" || currentView === "add-product" || currentView === "edit-product";
   const isEditorActive = currentView === "editor" || currentView === "upload-flyer";
 
   const studioNavItems = [
@@ -109,6 +121,13 @@ export function AdminSidebar({
 
   const inventoryNavItems = [
     {
+      id: "franchises" as AdminView,
+      title: "Franchises",
+      icon: Building2,
+      isActive: isFranchisesActive,
+      badge: merchantsCount > 0 ? `${merchantsCount}` : undefined,
+    },
+    {
       id: "stores" as AdminView,
       title: "Stores",
       icon: Store,
@@ -141,7 +160,9 @@ export function AdminSidebar({
         <div className="flex items-center group-data-[collapsible=icon]:justify-center">
           <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <BrandLogo className="h-9 w-auto" />
-            <span className="truncate text-[10px] text-muted-foreground font-medium mt-1">Admin</span>
+            <span className="truncate text-[10px] text-muted-foreground font-medium mt-1">
+              Admin
+            </span>
           </div>
           <div className="hidden group-data-[collapsible=icon]:block">
             <BrandIcon className="h-8 w-8" />
@@ -173,7 +194,9 @@ export function AdminSidebar({
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                      <item.icon
+                        className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                      />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                     {item.badge && (
@@ -209,7 +232,9 @@ export function AdminSidebar({
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                      <item.icon
+                        className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                      />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                     {item.badge && (
@@ -222,7 +247,11 @@ export function AdminSidebar({
               })}
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Customer Preview" className="font-medium text-xs h-9 text-muted-foreground hover:text-foreground">
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Customer Preview"
+                  className="font-medium text-xs h-9 text-muted-foreground hover:text-foreground"
+                >
                   <Link to="/preview">
                     <Eye className="h-4 w-4 text-primary" />
                     <span>Shopper Preview</span>
@@ -255,7 +284,9 @@ export function AdminSidebar({
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                      <item.icon
+                        className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                      />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -281,24 +312,34 @@ export function AdminSidebar({
               </Avatar>
               <div className="flex min-w-0 flex-1 flex-col leading-tight">
                 <span className="truncate font-semibold">{user?.name || "Administrator"}</span>
-                <span className="truncate text-[11px] text-muted-foreground">{user?.email || "admin@flip.local"}</span>
+                <span className="truncate text-[11px] text-muted-foreground">
+                  {user?.email || "admin@flip.local"}
+                </span>
               </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56" side="right" sideOffset={8}>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-xs font-semibold leading-none">{user?.name || "Administrator"}</p>
+                <p className="text-xs font-semibold leading-none">
+                  {user?.name || "Administrator"}
+                </p>
                 <p className="text-[11px] leading-none text-muted-foreground">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onSelectView("settings")} className="cursor-pointer gap-2 text-xs">
+            <DropdownMenuItem
+              onClick={() => onSelectView("settings")}
+              className="cursor-pointer gap-2 text-xs"
+            >
               <Settings className="h-3.5 w-3.5" />
               Settings & API
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout} className="cursor-pointer gap-2 text-xs text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={logout}
+              className="cursor-pointer gap-2 text-xs text-destructive focus:text-destructive"
+            >
               <LogOut className="h-3.5 w-3.5" />
               Log out
             </DropdownMenuItem>

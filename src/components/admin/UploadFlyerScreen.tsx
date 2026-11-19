@@ -42,6 +42,7 @@ import {
   type StoreLocation,
 } from "@/lib/api-client";
 import { FlyerCropDialog } from "./FlyerCropDialog";
+import { FranchiseDialog } from "./FranchiseDialog";
 import {
   evaluateFlyerSizing,
   RECOMMENDED_FLYER_WIDTH,
@@ -56,6 +57,7 @@ import {
 interface UploadFlyerScreenProps {
   merchants: Merchant[];
   storeLocations: StoreLocation[];
+  onFranchiseCreated?: (created: Merchant) => void;
   onFlyerCreated: (flyer: ApiFlyer) => void;
   onCancel: () => void;
 }
@@ -63,11 +65,13 @@ interface UploadFlyerScreenProps {
 export function UploadFlyerScreen({
   merchants,
   storeLocations,
+  onFranchiseCreated,
   onFlyerCreated,
   onCancel,
 }: UploadFlyerScreenProps) {
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("Weekly Deals · Live Circular");
+  const [isAddFranchiseOpen, setIsAddFranchiseOpen] = useState(false);
   const [badgeText, setBadgeText] = useState("NEW");
   const [badgeVariant, setBadgeVariant] = useState("lime");
   const [merchantId, setMerchantId] = useState(merchants[0]?.id || "merch_drug_mart");
@@ -78,7 +82,9 @@ export function UploadFlyerScreen({
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [imgDimensions, setImgDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [imgDimensions, setImgDimensions] = useState<{ width: number; height: number } | null>(
+    null,
+  );
   const [sizingEval, setSizingEval] = useState<SizingEvaluation | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -122,7 +128,7 @@ export function UploadFlyerScreen({
       if (!evaluation.isMatch) {
         toast.warning(
           `Image aspect ratio (${evaluation.aspectRatio.toFixed(2)}) deviates from mobile 9:16 standard. Use Crop/Resize to optimize.`,
-          { duration: 5000 }
+          { duration: 5000 },
         );
       } else {
         toast.success("Image matches 9:16 Mobile Standard (1080 × 1920)!", { duration: 3000 });
@@ -256,7 +262,8 @@ export function UploadFlyerScreen({
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Publish a new flyer image, set validity dates, format to mobile dimensions, and map interactive hotspots.
+              Publish a new flyer image, set validity dates, format to mobile dimensions, and map
+              interactive hotspots.
             </p>
           </div>
         </div>
@@ -266,7 +273,9 @@ export function UploadFlyerScreen({
         {/* Franchise and Branch Assignment */}
         <Card className="border shadow-xs">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">1. Franchise Brand &amp; Location</CardTitle>
+            <CardTitle className="text-sm font-semibold">
+              1. Franchise Brand &amp; Location
+            </CardTitle>
             <CardDescription className="text-xs">
               Assign this digital circular to a franchise brand and an optional specific branch.
             </CardDescription>
@@ -274,9 +283,22 @@ export function UploadFlyerScreen({
           <CardContent className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="merchant-select" className="text-xs font-medium">
-                  Brand / Franchise <span className="text-destructive">*</span>
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="merchant-select" className="text-xs font-medium">
+                    Brand / Franchise <span className="text-destructive">*</span>
+                  </Label>
+                  {onFranchiseCreated && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsAddFranchiseOpen(true)}
+                      className="h-5 px-1.5 text-[11px] font-medium text-primary hover:text-primary hover:underline"
+                    >
+                      + New Franchise
+                    </Button>
+                  )}
+                </div>
                 <Select
                   value={merchantId}
                   onValueChange={(val) => {
@@ -384,7 +406,8 @@ export function UploadFlyerScreen({
               </Badge>
             </div>
             <CardDescription className="text-xs">
-              Configure when this circular goes live and when it expires. Once expired, the flyer is hidden from customer apps and search results.
+              Configure when this circular goes live and when it expires. Once expired, the flyer is
+              hidden from customer apps and search results.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-xs">
@@ -446,7 +469,8 @@ export function UploadFlyerScreen({
               <div className="space-y-1.5">
                 <Label htmlFor="valid-from" className="text-xs font-medium flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  Valid From Date <span className="text-muted-foreground font-normal">(optional)</span>
+                  Valid From Date{" "}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
                 </Label>
                 <Input
                   id="valid-from"
@@ -488,7 +512,8 @@ export function UploadFlyerScreen({
                         day: "numeric",
                       })}
                     </strong>{" "}
-                    at 11:59 PM. After this date, the flyer will no longer be visible to shoppers in the mobile app.
+                    at 11:59 PM. After this date, the flyer will no longer be visible to shoppers in
+                    the mobile app.
                   </p>
                 </div>
               </div>
@@ -498,7 +523,8 @@ export function UploadFlyerScreen({
                 <div className="space-y-0.5">
                   <p className="font-semibold text-foreground">No Expiry Date</p>
                   <p className="text-[11px]">
-                    This flyer will remain published and visible indefinitely until an expiration date is configured or it is manually archived.
+                    This flyer will remain published and visible indefinitely until an expiration
+                    date is configured or it is manually archived.
                   </p>
                 </div>
               </div>
@@ -519,7 +545,9 @@ export function UploadFlyerScreen({
               </Badge>
             </div>
             <CardDescription className="text-xs">
-              Upload crisp JPG, PNG, or WebP circular pages. For mobile app shoppers, standard 9:16 vertical resolution ensures optimal display on smartphones without horizontal distortion.
+              Upload crisp JPG, PNG, or WebP circular pages. For mobile app shoppers, standard 9:16
+              vertical resolution ensures optimal display on smartphones without horizontal
+              distortion.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -587,14 +615,18 @@ export function UploadFlyerScreen({
                           <span className="font-semibold text-foreground">
                             Mobile Sizing Mismatch Detected
                           </span>
-                          <Badge variant="outline" className="text-[9px] border-amber-400 text-amber-700 dark:text-amber-300 font-mono">
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] border-amber-400 text-amber-700 dark:text-amber-300 font-mono"
+                          >
                             {sizingEval.label}
                           </Badge>
                         </div>
                         <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5 max-w-xl">
-                          Current size: {imgDimensions?.width} × {imgDimensions?.height} px (Aspect ratio{" "}
-                          {sizingEval.aspectRatio.toFixed(2)}). Mobile shopping apps standard is{" "}
-                          <strong>9:16 (1080 × 1920 px)</strong>. Format now to ensure high legibility and avoid side black bars on phones.
+                          Current size: {imgDimensions?.width} × {imgDimensions?.height} px (Aspect
+                          ratio {sizingEval.aspectRatio.toFixed(2)}). Mobile shopping apps standard
+                          is <strong>9:16 (1080 × 1920 px)</strong>. Format now to ensure high
+                          legibility and avoid side black bars on phones.
                         </p>
                       </div>
                     </div>
@@ -724,6 +756,18 @@ export function UploadFlyerScreen({
           onApplyCrop={handleApplyCrop}
         />
       )}
+
+      {/* Quick Add Franchise Modal */}
+      <FranchiseDialog
+        open={isAddFranchiseOpen}
+        onOpenChange={setIsAddFranchiseOpen}
+        onSuccess={(created) => {
+          if (onFranchiseCreated) {
+            onFranchiseCreated(created);
+          }
+          setMerchantId(created.id);
+        }}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowRight,
+  Building2,
   CalendarClock,
   CheckCircle2,
   Clock,
@@ -35,6 +36,8 @@ import type { AdminView } from "./AdminSidebar";
 interface DashboardViewProps {
   stats: DashboardStats | null;
   flyers: ApiFlyer[];
+  merchantsCount?: number;
+  storeLocationsCount?: number;
   loading: boolean;
   onSelectFlyerToEdit: (flyerId: string) => void;
   onOpenUpload: () => void;
@@ -46,6 +49,8 @@ interface DashboardViewProps {
 export function DashboardView({
   stats,
   flyers,
+  merchantsCount = 0,
+  storeLocationsCount = 0,
   loading,
   onSelectFlyerToEdit,
   onOpenUpload,
@@ -58,7 +63,11 @@ export function DashboardView({
 
   const activeFlyersCount = flyers.filter(isFlyerActive).length;
   const expiredFlyersCount = flyers.filter(isFlyerExpired).length;
-  const totalHotspots = stats ? stats.hotspots : flyers.reduce((acc, f) => acc + (f.hotspots?.length || 0), 0);
+  const totalHotspots = stats
+    ? stats.hotspots
+    : flyers.reduce((acc, f) => acc + (f.hotspots?.length || 0), 0);
+  const totalFranchises = merchantsCount > 0 ? merchantsCount : stats?.merchants || 5;
+  const totalStores = storeLocationsCount > 0 ? storeLocationsCount : stats?.stores || 3;
 
   const statCards = [
     {
@@ -71,15 +80,6 @@ export function DashboardView({
       onClick: () => onSelectView("flyers"),
     },
     {
-      title: "Expired Circulars",
-      value: expiredFlyersCount,
-      subtext: "Hidden",
-      icon: AlertTriangle,
-      accent: "text-amber-600 dark:text-amber-400",
-      bgAccent: "border-amber-500/20 bg-amber-500/5",
-      onClick: () => onSelectView("flyers"),
-    },
-    {
       title: "Interactive Hotspots",
       value: totalHotspots,
       subtext: "Mapped",
@@ -89,9 +89,18 @@ export function DashboardView({
       onClick: () => onSelectView("editor"),
     },
     {
+      title: "Franchise Brands",
+      value: totalFranchises,
+      subtext: "Chains",
+      icon: Building2,
+      accent: "text-indigo-600 dark:text-indigo-400",
+      bgAccent: "border-indigo-500/20 bg-indigo-500/5",
+      onClick: () => onSelectView("franchises"),
+    },
+    {
       title: "Store Locations",
-      value: stats ? stats.merchants : 5,
-      subtext: "Locations",
+      value: totalStores,
+      subtext: "Branches",
       icon: Store,
       accent: "text-foreground",
       bgAccent: "",
@@ -164,7 +173,9 @@ export function DashboardView({
                   <card.icon className={`h-4 w-4 ${card.accent}`} />
                 </CardHeader>
                 <CardContent>
-                  <div className={`text-2xl font-bold tracking-tight ${card.accent}`}>{card.value}</div>
+                  <div className={`text-2xl font-bold tracking-tight ${card.accent}`}>
+                    {card.value}
+                  </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{card.subtext}</p>
                 </CardContent>
               </Card>
@@ -179,7 +190,8 @@ export function DashboardView({
               Recent Circulars &amp; Validity Status
             </h2>
             <p className="text-xs text-muted-foreground">
-              Click any flyer to edit hotspots in the studio, manage expiry dates, or preview shopper experience.
+              Click any flyer to edit hotspots in the studio, manage expiry dates, or preview
+              shopper experience.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -218,7 +230,8 @@ export function DashboardView({
           <Card className="p-12 text-center border-dashed">
             <h3 className="font-semibold text-sm">No circulars published</h3>
             <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-              Get started by uploading your first digital circular or creating one from a pre-made template.
+              Get started by uploading your first digital circular or creating one from a pre-made
+              template.
             </p>
             <div className="mt-4 flex justify-center gap-2">
               <Button size="sm" onClick={onOpenUpload} className="gap-1.5 text-xs font-semibold">
@@ -244,7 +257,9 @@ export function DashboardView({
                 <Card
                   key={flyer.id}
                   className={`group overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between border ${
-                    expiry.isExpired ? "opacity-85 border-amber-300 dark:border-amber-700/60 bg-amber-500/5" : "bg-card"
+                    expiry.isExpired
+                      ? "opacity-85 border-amber-300 dark:border-amber-700/60 bg-amber-500/5"
+                      : "bg-card"
                   }`}
                 >
                   <div>
@@ -263,7 +278,10 @@ export function DashboardView({
                           {expiry.badgeLabel}
                         </Badge>
                         {flyer.badgeText && (
-                          <Badge variant="outline" className="text-[10px] bg-background/90 backdrop-blur font-semibold">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-background/90 backdrop-blur font-semibold"
+                          >
                             {flyer.badgeText}
                           </Badge>
                         )}
@@ -275,7 +293,10 @@ export function DashboardView({
 
                       {expiry.isExpired && (
                         <div className="absolute top-2 right-2">
-                          <Badge variant="destructive" className="text-[10px] uppercase font-bold tracking-wider shadow-xs flex items-center gap-1">
+                          <Badge
+                            variant="destructive"
+                            className="text-[10px] uppercase font-bold tracking-wider shadow-xs flex items-center gap-1"
+                          >
                             <AlertTriangle className="h-3 w-3" />
                             Hidden from app
                           </Badge>
@@ -285,7 +306,9 @@ export function DashboardView({
 
                     <CardContent className="p-4 pb-2">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-semibold text-sm truncate text-foreground">{flyer.title}</h3>
+                        <h3 className="font-semibold text-sm truncate text-foreground">
+                          {flyer.title}
+                        </h3>
                         {flyer.merchant && (
                           <span
                             className="inline-flex items-center justify-center h-6 w-6 rounded-md text-[10px] font-bold shrink-0 shadow-2xs"
@@ -310,14 +333,16 @@ export function DashboardView({
 
                       {/* Expiry date line */}
                       <div className="mt-2 flex items-center justify-between text-[11px]">
-                        <div className={`flex items-center gap-1 ${expiry.isExpired ? "text-amber-700 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
+                        <div
+                          className={`flex items-center gap-1 ${expiry.isExpired ? "text-amber-700 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}
+                        >
                           <CalendarClock className="h-3 w-3 shrink-0" />
                           <span>
                             {expiry.isExpired
                               ? `Expired: ${expiry.formattedExpiry}`
                               : flyer.validTo
-                              ? `Expires: ${expiry.formattedExpiry}`
-                              : "No expiration set"}
+                                ? `Expires: ${expiry.formattedExpiry}`
+                                : "No expiration set"}
                           </span>
                         </div>
 
@@ -344,7 +369,13 @@ export function DashboardView({
                       Studio Hotspots
                     </Button>
 
-                    <Button asChild variant="outline" size="sm" className="h-8 px-2.5" title="Shopper Preview">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2.5"
+                      title="Shopper Preview"
+                    >
                       <Link to="/preview" search={{ flyerId: flyer.id } as any}>
                         <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                       </Link>

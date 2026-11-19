@@ -3,8 +3,7 @@
  * Connects directly to the Neon-backed Snatchup REST API.
  */
 
-export const API_BASE =
-  import.meta.env.VITE_API_URL || 'https://flip-api-kdfp.onrender.com';
+export const API_BASE = import.meta.env.VITE_API_URL || "https://flip-api-kdfp.onrender.com";
 
 export interface StoreLocation {
   id: string;
@@ -22,6 +21,13 @@ export interface StoreLocation {
   flyers?: ApiFlyer[];
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  icon?: string | null;
+  displayOrder?: number | null;
+}
+
 export interface Merchant {
   id: string;
   name: string;
@@ -29,11 +35,15 @@ export interface Merchant {
   initial: string;
   logoBg: string;
   logoColor: string;
-  logoUrl?: string;
-  bannerUrl?: string;
-  categoryId?: string;
-  website?: string;
+  logoUrl?: string | null;
+  bannerUrl?: string | null;
+  categoryId?: string | null;
+  website?: string | null;
+  category?: Category | null;
   locations?: StoreLocation[];
+  flyers?: ApiFlyer[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ApiProduct {
@@ -53,14 +63,14 @@ export interface ApiProduct {
 }
 
 export const PRODUCT_PRESET_IMAGES = [
-  { label: 'Coca-Cola', url: '/uploads/products/coca-cola.jpg' },
-  { label: 'Lay\'s Chips', url: '/uploads/products/lays.jpg' },
-  { label: 'Doritos Nacho', url: '/uploads/products/doritos.jpg' },
-  { label: 'Oreo Cookies', url: '/uploads/products/oreo.jpg' },
-  { label: 'Froot Loops', url: '/uploads/products/froot-loops.jpg' },
-  { label: 'Red Bull Energy', url: '/uploads/products/red-bull.jpg' },
-  { label: 'Tide Pods', url: '/uploads/products/tide.jpg' },
-  { label: 'Colgate Toothpaste', url: '/uploads/products/colgate.jpg' },
+  { label: "Coca-Cola", url: "/uploads/products/coca-cola.jpg" },
+  { label: "Lay's Chips", url: "/uploads/products/lays.jpg" },
+  { label: "Doritos Nacho", url: "/uploads/products/doritos.jpg" },
+  { label: "Oreo Cookies", url: "/uploads/products/oreo.jpg" },
+  { label: "Froot Loops", url: "/uploads/products/froot-loops.jpg" },
+  { label: "Red Bull Energy", url: "/uploads/products/red-bull.jpg" },
+  { label: "Tide Pods", url: "/uploads/products/tide.jpg" },
+  { label: "Colgate Toothpaste", url: "/uploads/products/colgate.jpg" },
 ];
 
 export interface ApiHotspot {
@@ -87,7 +97,7 @@ export interface ApiFlyer {
   badgeVariant?: string;
   flyerImageUrl: string;
   aspectRatio: number;
-  status: 'draft' | 'published' | 'archived';
+  status: "draft" | "published" | "archived";
   pageCount: number;
   createdAt?: string;
   updatedAt?: string;
@@ -102,22 +112,24 @@ export interface DashboardStats {
   flyers: number;
   products: number;
   merchants: number;
+  franchises?: number;
+  stores?: number;
   hotspots: number;
 }
 
 export async function fetchStats(): Promise<DashboardStats> {
   const res = await fetch(`${API_BASE}/api/v1/stats`);
-  if (!res.ok) throw new Error('Failed to fetch dashboard stats');
+  if (!res.ok) throw new Error("Failed to fetch dashboard stats");
   return res.json();
 }
 
 export async function fetchFlyers(includeExpired = true): Promise<ApiFlyer[]> {
   const url = new URL(`${API_BASE}/api/v1/flyers`);
   if (includeExpired) {
-    url.searchParams.set('includeExpired', 'true');
+    url.searchParams.set("includeExpired", "true");
   }
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch flyers');
+  if (!res.ok) throw new Error("Failed to fetch flyers");
   return res.json();
 }
 
@@ -129,29 +141,29 @@ export async function fetchFlyerById(id: string): Promise<ApiFlyer> {
 
 export async function createFlyer(data: Partial<ApiFlyer>): Promise<ApiFlyer> {
   const res = await fetch(`${API_BASE}/api/v1/flyers`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create flyer');
+  if (!res.ok) throw new Error("Failed to create flyer");
   return res.json();
 }
 
 export async function updateFlyer(id: string, data: Partial<ApiFlyer>): Promise<ApiFlyer> {
   const res = await fetch(`${API_BASE}/api/v1/flyers/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update flyer');
+  if (!res.ok) throw new Error("Failed to update flyer");
   return res.json();
 }
 
 export async function deleteFlyer(id: string): Promise<{ success: boolean }> {
   const res = await fetch(`${API_BASE}/api/v1/flyers/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
-  if (!res.ok) throw new Error('Failed to delete flyer');
+  if (!res.ok) throw new Error("Failed to delete flyer");
   return res.json();
 }
 
@@ -164,103 +176,185 @@ export async function saveHotspotsBatch(
     y: number;
     width: number;
     height: number;
-  }>
+  }>,
 ): Promise<{ success: boolean; count: number; hotspots: ApiHotspot[] }> {
   const res = await fetch(`${API_BASE}/api/v1/flyers/${flyerId}/hotspots/batch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ hotspots }),
   });
-  if (!res.ok) throw new Error('Failed to save hotspots to database');
+  if (!res.ok) throw new Error("Failed to save hotspots to database");
   return res.json();
 }
 
 export async function fetchProducts(query?: string): Promise<ApiProduct[]> {
   const url = new URL(`${API_BASE}/api/v1/products`);
-  if (query) url.searchParams.set('q', query);
+  if (query) url.searchParams.set("q", query);
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch products');
+  if (!res.ok) throw new Error("Failed to fetch products");
   return res.json();
 }
 
 export async function createProduct(data: Partial<ApiProduct>): Promise<ApiProduct> {
   const res = await fetch(`${API_BASE}/api/v1/products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create product');
+  if (!res.ok) throw new Error("Failed to create product");
   return res.json();
 }
 
 export async function updateProduct(id: string, data: Partial<ApiProduct>): Promise<ApiProduct> {
   const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update product');
+  if (!res.ok) throw new Error("Failed to update product");
   return res.json();
 }
 
 export async function deleteProduct(id: string): Promise<{ success: boolean; deletedId: string }> {
   const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
-  if (!res.ok) throw new Error('Failed to delete product');
+  if (!res.ok) throw new Error("Failed to delete product");
   return res.json();
 }
 
 export async function fetchMerchants(): Promise<Merchant[]> {
   const res = await fetch(`${API_BASE}/api/v1/merchants`);
-  if (!res.ok) throw new Error('Failed to fetch merchants');
+  if (!res.ok) throw new Error("Failed to fetch merchants");
   return res.json();
+}
+
+export async function createMerchant(data: Partial<Merchant>): Promise<Merchant> {
+  const slug =
+    data.slug?.trim() ||
+    data.name
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") ||
+    `franchise-${Date.now().toString(36)}`;
+  const initial = data.initial?.trim() || data.name?.trim().charAt(0).toUpperCase() || "F";
+  const payload = {
+    ...data,
+    name: data.name?.trim(),
+    slug,
+    initial,
+    logoBg: data.logoBg || "#075E50",
+    logoColor: data.logoColor || "#FFFFFF",
+  };
+  const res = await fetch(`${API_BASE}/api/v1/merchants`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to create franchise brand");
+  }
+  return res.json();
+}
+
+export async function updateMerchant(id: string, data: Partial<Merchant>): Promise<Merchant> {
+  const payload: Partial<Merchant> = { ...data };
+  if (data.name) payload.name = data.name.trim();
+  if (data.slug) payload.slug = data.slug.trim();
+  if (data.initial) payload.initial = data.initial.trim();
+  const res = await fetch(`${API_BASE}/api/v1/merchants/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to update franchise brand");
+  }
+  return res.json();
+}
+
+export async function deleteMerchant(id: string): Promise<{ success: boolean; deletedId: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/merchants/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to delete franchise brand");
+  }
+  return res.json();
+}
+
+export const DEFAULT_CATEGORIES: Category[] = [
+  { id: "groceries", name: "Groceries", icon: "shopping-cart", displayOrder: 1 },
+  { id: "pharmacy", name: "Pharmacy & Health", icon: "heart", displayOrder: 2 },
+  { id: "home", name: "Home & Hardware", icon: "home", displayOrder: 3 },
+  { id: "beauty", name: "Beauty", icon: "smile", displayOrder: 4 },
+  { id: "latest", name: "Latest Deals", icon: "zap", displayOrder: 5 },
+  { id: "for_you", name: "General", icon: "sparkles", displayOrder: 6 },
+];
+
+export async function fetchCategories(): Promise<Category[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/categories`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch {
+    // Fallback to presets
+  }
+  return DEFAULT_CATEGORIES;
 }
 
 export async function fetchStoreLocations(merchantId?: string): Promise<StoreLocation[]> {
   const url = new URL(`${API_BASE}/api/v1/store-locations`);
-  if (merchantId) url.searchParams.set('merchantId', merchantId);
+  if (merchantId) url.searchParams.set("merchantId", merchantId);
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to fetch store locations');
+  if (!res.ok) throw new Error("Failed to fetch store locations");
   return res.json();
 }
 
 export async function createStoreLocation(data: Partial<StoreLocation>): Promise<StoreLocation> {
   const res = await fetch(`${API_BASE}/api/v1/store-locations`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create store location');
+  if (!res.ok) throw new Error("Failed to create store location");
   return res.json();
 }
 
-export async function updateStoreLocation(id: string, data: Partial<StoreLocation>): Promise<StoreLocation> {
+export async function updateStoreLocation(
+  id: string,
+  data: Partial<StoreLocation>,
+): Promise<StoreLocation> {
   const res = await fetch(`${API_BASE}/api/v1/store-locations/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update store location');
+  if (!res.ok) throw new Error("Failed to update store location");
   return res.json();
 }
 
 export async function deleteStoreLocation(id: string): Promise<{ success: boolean }> {
   const res = await fetch(`${API_BASE}/api/v1/store-locations/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
-  if (!res.ok) throw new Error('Failed to delete store location');
+  if (!res.ok) throw new Error("Failed to delete store location");
   return res.json();
 }
 
 export async function uploadImage(file: File): Promise<{ success: boolean; url: string }> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
   const res = await fetch(`${API_BASE}/api/v1/upload`, {
-    method: 'POST',
+    method: "POST",
     body: formData,
   });
-  if (!res.ok) throw new Error('Failed to upload image');
+  if (!res.ok) throw new Error("Failed to upload image");
   return res.json();
 }
 
@@ -268,7 +362,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: "admin" | "user";
   phone?: string | null;
   avatarUrl?: string | null;
 }
@@ -282,16 +376,16 @@ export interface AuthResponse {
 export async function loginUser(
   email: string,
   password: string,
-  adminOnly = true
+  adminOnly = true,
 ): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, adminOnly }),
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || 'Authentication failed');
+    throw new Error(data.error || "Authentication failed");
   }
   return data;
 }
@@ -303,13 +397,13 @@ export async function registerUser(payload: {
   phone?: string;
 }): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || 'Registration failed');
+    throw new Error(data.error || "Registration failed");
   }
   return data;
 }
@@ -320,7 +414,7 @@ export async function fetchCurrentUser(token: string): Promise<{ user: AuthUser 
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || 'Failed to verify session');
+    throw new Error(data.error || "Failed to verify session");
   }
   return data;
 }
@@ -336,13 +430,13 @@ export function isFlyerScheduled(flyer: ApiFlyer): boolean {
 }
 
 export function isFlyerActive(flyer: ApiFlyer): boolean {
-  return flyer.status === 'published' && !isFlyerExpired(flyer) && !isFlyerScheduled(flyer);
+  return flyer.status === "published" && !isFlyerExpired(flyer) && !isFlyerScheduled(flyer);
 }
 
 export interface FlyerExpiryInfo {
-  status: 'active' | 'expired' | 'scheduled' | 'no-expiry' | 'draft' | 'archived';
+  status: "active" | "expired" | "scheduled" | "no-expiry" | "draft" | "archived";
   badgeLabel: string;
-  badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline';
+  badgeVariant: "default" | "secondary" | "destructive" | "outline";
   daysRemaining?: number;
   formattedExpiry?: string;
   formattedValidFrom?: string;
@@ -356,26 +450,26 @@ export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
   const isScheduled = isFlyerScheduled(flyer);
 
   const formattedExpiry = flyer.validTo
-    ? new Date(flyer.validTo).toLocaleDateString('en-CA', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
+    ? new Date(flyer.validTo).toLocaleDateString("en-CA", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
       })
     : undefined;
 
   const formattedValidFrom = flyer.validFrom
-    ? new Date(flyer.validFrom).toLocaleDateString('en-CA', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
+    ? new Date(flyer.validFrom).toLocaleDateString("en-CA", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
       })
     : undefined;
 
-  if (flyer.status === 'draft') {
+  if (flyer.status === "draft") {
     return {
-      status: 'draft',
-      badgeLabel: 'Draft',
-      badgeVariant: 'secondary',
+      status: "draft",
+      badgeLabel: "Draft",
+      badgeVariant: "secondary",
       formattedExpiry,
       formattedValidFrom,
       isExpired,
@@ -383,11 +477,11 @@ export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
     };
   }
 
-  if (flyer.status === 'archived') {
+  if (flyer.status === "archived") {
     return {
-      status: 'archived',
-      badgeLabel: 'Archived',
-      badgeVariant: 'secondary',
+      status: "archived",
+      badgeLabel: "Archived",
+      badgeVariant: "secondary",
       formattedExpiry,
       formattedValidFrom,
       isExpired,
@@ -397,9 +491,9 @@ export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
 
   if (isExpired) {
     return {
-      status: 'expired',
-      badgeLabel: 'Expired · Hidden',
-      badgeVariant: 'destructive',
+      status: "expired",
+      badgeLabel: "Expired · Hidden",
+      badgeVariant: "destructive",
       formattedExpiry,
       formattedValidFrom,
       isExpired: true,
@@ -409,9 +503,9 @@ export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
 
   if (isScheduled) {
     return {
-      status: 'scheduled',
-      badgeLabel: formattedValidFrom ? `Starts ${formattedValidFrom}` : 'Scheduled',
-      badgeVariant: 'outline',
+      status: "scheduled",
+      badgeLabel: formattedValidFrom ? `Starts ${formattedValidFrom}` : "Scheduled",
+      badgeVariant: "outline",
       formattedExpiry,
       formattedValidFrom,
       isExpired: false,
@@ -426,17 +520,17 @@ export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
 
     const label =
       daysRemaining === 0
-        ? 'Expires today'
+        ? "Expires today"
         : daysRemaining === 1
-        ? 'Expires tomorrow'
-        : daysRemaining <= 7
-        ? `${daysRemaining} days left`
-        : `Until ${formattedExpiry}`;
+          ? "Expires tomorrow"
+          : daysRemaining <= 7
+            ? `${daysRemaining} days left`
+            : `Until ${formattedExpiry}`;
 
     return {
-      status: 'active',
+      status: "active",
       badgeLabel: label,
-      badgeVariant: 'default',
+      badgeVariant: "default",
       daysRemaining,
       formattedExpiry,
       formattedValidFrom,
@@ -446,9 +540,9 @@ export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
   }
 
   return {
-    status: 'no-expiry',
-    badgeLabel: 'Active · No Expiry',
-    badgeVariant: 'outline',
+    status: "no-expiry",
+    badgeLabel: "Active · No Expiry",
+    badgeVariant: "outline",
     formattedExpiry: undefined,
     formattedValidFrom,
     isExpired: false,
@@ -460,13 +554,13 @@ export function getFlyerExpiryInfo(flyer: ApiFlyer): FlyerExpiryInfo {
  * Format date string into YYYY-MM-DD for <input type="date" />
  */
 export function formatIsoDateOnly(isoString?: string | null): string {
-  if (!isoString) return '';
+  if (!isoString) return "";
   try {
     const d = new Date(isoString);
-    if (isNaN(d.getTime())) return '';
-    return d.toISOString().split('T')[0];
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().split("T")[0];
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -474,8 +568,8 @@ export function formatIsoDateOnly(isoString?: string | null): string {
  * Convert a YYYY-MM-DD date input string into an ISO string at end of that day (23:59:59.999)
  */
 export function toEndOfDayIso(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-").map(Number);
   const d = new Date(year, month - 1, day, 23, 59, 59, 999);
   return d.toISOString();
 }
@@ -484,8 +578,8 @@ export function toEndOfDayIso(dateStr: string): string {
  * Convert a YYYY-MM-DD date input string into an ISO string at start of that day (00:00:00.000)
  */
 export function toStartOfDayIso(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-").map(Number);
   const d = new Date(year, month - 1, day, 0, 0, 0, 0);
   return d.toISOString();
 }
@@ -497,8 +591,8 @@ export function getRelativeDateString(daysFromNow: number): string {
   const d = new Date();
   d.setDate(d.getDate() + daysFromNow);
   const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -509,8 +603,8 @@ export function getEndOfCurrentMonthString(): string {
   const now = new Date();
   const d = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -518,9 +612,9 @@ export function getEndOfCurrentMonthString(): string {
  * Resolves an image URL: if relative (like /uploads/...), prepends API_BASE
  */
 export function resolveImageUrl(url: string | undefined): string {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:")) {
     return url;
   }
-  return `${API_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+  return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
 }
