@@ -23,6 +23,8 @@ import {
   ZoomIn,
   ZoomOut,
   Crop,
+  Sparkles,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -57,6 +59,7 @@ import {
   getFlyerExpiryInfo,
   updateFlyer,
   uploadImage,
+  cropBannerArea,
   type ApiFlyer,
   type ApiProduct,
   type Merchant,
@@ -65,6 +68,8 @@ import {
 import { ProductDialog } from "./ProductDialog";
 import { FlyerExpiryDialog } from "./FlyerExpiryDialog";
 import { FlyerCropDialog } from "./FlyerCropDialog";
+import { AutoDetectHotspotsDialog } from "./AutoDetectHotspotsDialog";
+import { DealSearchDialog, FlyerBannerSnippet } from "./DealSearchDialog";
 import type { Hotspot, HotspotRect } from "@/lib/flyer-storage";
 import { cn } from "@/lib/utils";
 
@@ -126,8 +131,36 @@ export function EditorView({
   const [zoom, setZoom] = useState(1.0);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [autoDetectOpen, setAutoDetectOpen] = useState(false);
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+  const [isCroppingBanner, setIsCroppingBanner] = useState(false);
 
   const currentFlyer = flyers.find((f) => f.id === selectedFlyerId);
+
+  const handleApplyBannerAsProductImage = async () => {
+    if (!selectedHotspot || !selectedProduct) {
+      toast.error("Please assign a product to this hotspot first.");
+      return;
+    }
+    setIsCroppingBanner(true);
+    try {
+      const cropRes = await cropBannerArea({
+        imageUrl,
+        x: selectedHotspot.x,
+        y: selectedHotspot.y,
+        width: selectedHotspot.width,
+        height: selectedHotspot.height,
+        productId: selectedProduct.id,
+      });
+
+      selectedProduct.imageUrl = cropRes.url;
+      toast.success(`Updated "${selectedProduct.name}" photo from flyer banner!`);
+    } catch (err: any) {
+      toast.error(`Failed to crop banner image: ${err.message}`);
+    } finally {
+      setIsCroppingBanner(false);
+    }
+  };
 
   const handleApplyCrop = async (result: {
     file: File;
@@ -457,12 +490,34 @@ export function EditorView({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setAutoDetectOpen(true)}
+            className="h-8 gap-1.5 text-xs font-semibold border-primary/40 text-primary bg-primary/5 hover:bg-primary/10"
+            title="Automatically detect circular product areas, prices & photos with AI & OCR"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden sm:inline">AI Auto-Detect</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchDialogOpen(true)}
+            className="h-8 gap-1.5 text-xs"
+            title="Search products and circular deals with visual banner snippets"
+          >
+            <Search className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="hidden md:inline">Search Deals</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setCropDialogOpen(true)}
             className="h-8 gap-1.5 text-xs"
             title="Reformat or crop flyer image to 9:16 mobile standard (1080 × 1920)"
           >
             <Crop className="h-3.5 w-3.5 text-primary" />
-            <span className="hidden sm:inline">Crop / Resize</span>
+            <span className="hidden lg:inline">Crop / Resize</span>
           </Button>
 
           <Button
@@ -828,6 +883,50 @@ export function EditorView({
                 </div>
               )}
 
+              {/* Selected Banner Area Snippet Preview & Cropper */}
+              <div className="space-y-1.5 p-2 rounded-md bg-background border text-xs">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Crop className="h-3 w-3 text-primary" />
+                    Banner Area Snippet
+                  </span>
+                  {selectedProduct && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleApplyBannerAsProductImage}
+                      disabled={isCroppingBanner}
+                      className="h-5 px-1.5 text-[10px] text-primary hover:text-primary hover:underline"
+                      title="Save this cropped circular area as the product's catalog photo"
+                    >
+                      {isCroppingBanner ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : null}
+                      Use as Photo
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2.5 pt-0.5">
+                  <FlyerBannerSnippet
+                    flyerImageUrl={imageUrl}
+                    x={selectedHotspot.x}
+                    y={selectedHotspot.y}
+                    width={selectedHotspot.width}
+                    height={selectedHotspot.height}
+                    className="w-14 h-14 rounded-md shadow-2xs"
+                  />
+                  <div className="text-[10px] text-muted-foreground space-y-0.5 min-w-0 flex-1">
+                    <p className="font-medium text-foreground">Flyer Region</p>
+                    <p>{Math.round(selectedHotspot.width * 100)}% × {Math.round(selectedHotspot.height * 100)}%</p>
+                    <p className="text-[9px] text-muted-foreground truncate">
+                      At: ({Math.round(selectedHotspot.x * 100)}%, {Math.round(selectedHotspot.y * 100)}%)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Product Selector Dropdown */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
@@ -1023,6 +1122,39 @@ export function EditorView({
           onApplyCrop={handleApplyCrop}
         />
       )}
+
+      {/* AI & OCR Hotspots Auto-Detection Dialog */}
+      {currentFlyer && (
+        <AutoDetectHotspotsDialog
+          open={autoDetectOpen}
+          onOpenChange={setAutoDetectOpen}
+          flyer={currentFlyer}
+          catalogProducts={catalogProducts}
+          onApplyHotspots={(detectedList) => {
+            for (const d of detectedList) {
+              onCreateHotspot(
+                { x: d.x, y: d.y, width: d.width, height: d.height },
+                d.productId
+              );
+            }
+          }}
+        />
+      )}
+
+      {/* Deal Search with Cropped Flyer Snippets */}
+      <DealSearchDialog
+        open={searchDialogOpen}
+        onOpenChange={setSearchDialogOpen}
+        merchantId={currentFlyer?.merchantId}
+        onSelectResult={(deal) => {
+          if (deal.flyerId && deal.flyerId !== selectedFlyerId) {
+            onSelectFlyer(deal.flyerId);
+          }
+          if (deal.hotspotId) {
+            onSelectHotspot(deal.hotspotId);
+          }
+        }}
+      />
     </div>
   );
 }

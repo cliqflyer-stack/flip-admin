@@ -155,6 +155,31 @@ export default function FlyerPreviewCanvas({
     return createSketchedRingPoints(ringRx, ringRy);
   }, [selectedHotspot?.id, ringRx, ringRy, stageWidth]);
 
+  // Auto-scroll and pan into focus when a hotspot is selected
+  useEffect(() => {
+    if (!selectedHotspotId || !selectedHotspot || stageWidth <= 0 || stageHeight <= 0) return;
+
+    // Zoom comfortably to focus on the deal (e.g. 1.8x to 2.2x zoom)
+    const targetScale = Math.min(2.5, Math.max(1.6, MIN_ZOOM * 1.9));
+    const targetCenterX = (selectedHotspot.x + selectedHotspot.width / 2) * stageWidth;
+    const targetCenterY = (selectedHotspot.y + selectedHotspot.height / 2) * stageHeight;
+
+    const viewportCenterX = stageWidth / 2;
+    const viewportCenterY = Math.min(stageHeight / 2, 380);
+
+    const desiredX = viewportCenterX - targetCenterX * targetScale;
+    const desiredY = viewportCenterY - targetCenterY * targetScale;
+
+    setView(clampView({
+      scale: targetScale,
+      x: desiredX,
+      y: desiredY,
+    }));
+
+    // Scroll browser into view if canvas is scrolled past viewport
+    containerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selectedHotspotId, stageWidth, stageHeight]);
+
   // Sketched marker ring animation: quick organic draw-on (~260ms) + settle into solid sketched ring
   useEffect(() => {
     const group = highlightGroupRef.current;

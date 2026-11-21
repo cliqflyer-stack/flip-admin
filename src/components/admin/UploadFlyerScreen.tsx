@@ -15,6 +15,7 @@ import {
   Crop,
   Smartphone,
   Maximize2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -33,6 +35,7 @@ import {
 import {
   createFlyer,
   uploadImage,
+  autoDetectFlyerHotspots,
   toEndOfDayIso,
   toStartOfDayIso,
   getRelativeDateString,
@@ -43,6 +46,7 @@ import {
 } from "@/lib/api-client";
 import { FlyerCropDialog } from "./FlyerCropDialog";
 import { FranchiseDialog } from "./FranchiseDialog";
+import { GenerateFlyerFromSheetDialog } from "./GenerateFlyerFromSheetDialog";
 import {
   evaluateFlyerSizing,
   RECOMMENDED_FLYER_WIDTH,
@@ -89,6 +93,8 @@ export function UploadFlyerScreen({
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAutoFitting, setIsAutoFitting] = useState(false);
+  const [isSheetDialogOpen, setIsSheetDialogOpen] = useState(false);
+  const [autoDetectOnUpload, setAutoDetectOnUpload] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleApplyPreset = (days: number | "month" | "clear") => {
@@ -227,6 +233,23 @@ export function UploadFlyerScreen({
       });
 
       toast.success(`"${created.title}" published! Opening in Interactive Studio...`);
+
+      if (autoDetectOnUpload) {
+        toast.info("Analyzing circular with AI & OCR to detect deals and map areas...");
+        try {
+          const autoRes = await autoDetectFlyerHotspots({
+            flyerId: created.id,
+            createMissingProducts: true,
+            applyImmediately: true,
+          });
+          if (autoRes.count > 0) {
+            toast.success(`✨ Auto-detected and mapped ${autoRes.count} product deals with cropped thumbnails!`);
+          }
+        } catch (e: any) {
+          console.warn("Auto-detection post-upload failed:", e);
+        }
+      }
+
       onFlyerCreated(created);
     } catch (err: any) {
       toast.error(`Flyer upload failed: ${err.message}`);
@@ -267,6 +290,17 @@ export function UploadFlyerScreen({
             </p>
           </div>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setIsSheetDialogOpen(true)}
+          className="h-8 gap-1.5 text-xs font-semibold border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10"
+        >
+          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+          <span>Generate from Spreadsheet (.xlsx / .csv)</span>
+        </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -718,33 +752,56 @@ export function UploadFlyerScreen({
           </CardContent>
         </Card>
 
-        {/* Bottom Action Footer */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="text-xs"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={isSubmitting || !selectedFile}
-            className="text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs"
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Upload className="h-3.5 w-3.5" />
-            )}
-            {isSubmitting ? "Uploading Circular..." : "Publish Flyer & Open Studio"}
-          </Button>
+        {/* Bottom Action Footer with AI Auto-Detect Switch */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t">
+          <div className="flex items-center gap-2.5 text-xs">
+            <Switch
+              id="autodetect-switch"
+              checked={autoDetectOnUpload}
+              onCheckedChange={setAutoDetectOnUpload}
+            />
+            <Label htmlFor="autodetect-switch" className="cursor-pointer text-xs flex items-center gap-1.5 font-medium">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span>Auto-detect deals, prices, and areas with AI &amp; OCR</span>
+            </Label>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSubmitting || !selectedFile}
+              className="text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
+              {isSubmitting ? "Uploading Circular..." : "Publish Flyer & Open Studio"}
+            </Button>
+          </div>
         </div>
       </form>
+
+      {/* Spreadsheet Flyer Generator Dialog */}
+      <GenerateFlyerFromSheetDialog
+        open={isSheetDialogOpen}
+        onOpenChange={setIsSheetDialogOpen}
+        merchants={merchants}
+        storeLocations={storeLocations}
+        onFlyerGenerated={onFlyerCreated}
+      />
 
       {/* Crop & Resize Modal */}
       {previewUrl && (

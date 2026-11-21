@@ -670,3 +670,129 @@ export function resolveImageUrl(url: string | undefined): string {
   }
   return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
 }
+
+export interface DealSearchResult {
+  id: string;
+  productId: string;
+  name: string;
+  brand: string;
+  description: string;
+  category: string;
+  regularPrice: string | number;
+  offerPrice: string | number;
+  unit: string;
+  productImageUrl: string;
+  hasHotspot: boolean;
+  hotspotId?: string;
+  flyerId?: string;
+  flyerTitle?: string;
+  flyerImageUrl?: string;
+  merchantId?: string | null;
+  merchantName?: string;
+  merchantLogoBg?: string;
+  merchantLogoColor?: string;
+  storeLocationId?: string | null;
+  storeName?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  titleOverride?: string | null;
+  priceOverride?: string | null;
+}
+
+export interface AutoDetectedItem {
+  tempId: string;
+  name: string;
+  brand: string;
+  description: string;
+  regularPrice: number;
+  offerPrice: number;
+  unit: string;
+  badgeText: string;
+  category: string;
+  box: { x: number; y: number; width: number; height: number };
+  confidence: number;
+  croppedImageUrl?: string;
+  matchedProductId?: string | null;
+  isNew?: boolean;
+  product?: ApiProduct;
+}
+
+export interface AutoDetectResponse {
+  success: boolean;
+  count: number;
+  items: AutoDetectedItem[];
+  applied?: boolean;
+}
+
+/**
+ * Automatically detects deals, text, prices, and bounding boxes on a flyer using AI and OCR.
+ */
+export async function autoDetectFlyerHotspots(params: {
+  flyerId?: string;
+  flyerImageUrl?: string;
+  merchantId?: string;
+  useAi?: boolean;
+  apiKey?: string;
+  createMissingProducts?: boolean;
+  applyImmediately?: boolean;
+}): Promise<AutoDetectResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/flyers/auto-detect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Auto-detection failed: ${errorText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Crops a bounding box area from a flyer image to create a clean product thumbnail.
+ * Optionally updates the product's imageUrl in database if productId is provided.
+ */
+export async function cropBannerArea(params: {
+  imageUrl: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  productId?: string;
+}): Promise<{ success: boolean; url: string; filename: string; pixelWidth: number; pixelHeight: number }> {
+  const res = await fetch(`${API_BASE}/api/v1/upload/crop`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Crop failed: ${errorText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Searches products and active circular deals.
+ * Returns matching products with flyer hotspot coordinates and cropped visual snippet coordinates.
+ */
+export async function searchDeals(params: {
+  query: string;
+  merchantId?: string;
+  storeLocationId?: string;
+  limit?: number;
+}): Promise<{ query: string; count: number; results: DealSearchResult[] }> {
+  const url = new URL(`${API_BASE}/api/v1/search/deals`);
+  if (params.query) url.searchParams.set("q", params.query);
+  if (params.merchantId) url.searchParams.set("merchantId", params.merchantId);
+  if (params.storeLocationId) url.searchParams.set("storeLocationId", params.storeLocationId);
+  if (params.limit) url.searchParams.set("limit", String(params.limit));
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    throw new Error("Search request failed");
+  }
+  return res.json();
+}

@@ -16,10 +16,12 @@ import {
   Smartphone,
   Store,
   Tablet,
+  Search,
 } from "lucide-react";
 
 import sampleFlyerUrl from "@/assets/sample-flyer.jpg";
 import { ProductSheet } from "@/components/flyer/ProductSheet";
+import { DealSearchDialog } from "@/components/admin/DealSearchDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +48,7 @@ export const Route = createFileRoute("/preview")({
     flyerId: (search.flyerId as string) || undefined,
     storeId: (search.storeId as string) || undefined,
     merchantId: (search.merchantId as string) || undefined,
+    hotspotId: (search.hotspotId as string) || undefined,
   }),
   head: () => ({
     meta: [
@@ -80,9 +83,10 @@ function DynamicPreviewPage() {
   const [imageUrl, setImageUrl] = useState<string>(sampleFlyerUrl);
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
-  const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
+  const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(searchParams.hotspotId || null);
   const [loading, setLoading] = useState(true);
   const [showExpiredAdmin, setShowExpiredAdmin] = useState(false);
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
   // Load database records on mount
   useEffect(() => {
@@ -106,7 +110,7 @@ function DynamicPreviewPage() {
         if (searchParams.flyerId) {
           const match = flyersData.find((f) => f.id === searchParams.flyerId);
           if (match) {
-            activateFlyer(match);
+            activateFlyer(match, searchParams.hotspotId);
           }
         }
       } catch (err) {
@@ -122,10 +126,10 @@ function DynamicPreviewPage() {
     };
   }, []);
 
-  const activateFlyer = (flyer: ApiFlyer) => {
+  const activateFlyer = (flyer: ApiFlyer, targetHotspotId?: string) => {
     setSelectedFlyerId(flyer.id);
     setImageUrl(resolveImageUrl(flyer.flyerImageUrl));
-    setSelectedHotspotId(null);
+    setSelectedHotspotId(targetHotspotId || null);
 
     if (flyer.hotspots && flyer.hotspots.length > 0) {
       setHotspots(
@@ -140,8 +144,20 @@ function DynamicPreviewPage() {
           titleOverride: h.titleOverride,
         }))
       );
+      if (targetHotspotId) {
+        setSelectedHotspotId(targetHotspotId);
+      }
     } else {
       setHotspots([]);
+    }
+  };
+
+  const handleSelectSearchResult = (deal: any) => {
+    if (deal.flyerId) {
+      const match = flyers.find((f) => f.id === deal.flyerId);
+      if (match) {
+        activateFlyer(match, deal.hotspotId);
+      }
     }
   };
 
@@ -213,16 +229,28 @@ function DynamicPreviewPage() {
             </div>
           </div>
 
-          <Button
-            variant={showExpiredAdmin ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
-            className="h-8 text-xs gap-1.5"
-            title="Toggle viewing expired flyers in preview"
-          >
-            <CalendarClock className="h-3.5 w-3.5 text-primary" />
-            <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchDialogOpen(true)}
+              className="h-8 text-xs gap-1.5"
+            >
+              <Search className="h-3.5 w-3.5 text-primary" />
+              <span>Search Deals</span>
+            </Button>
+
+            <Button
+              variant={showExpiredAdmin ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
+              className="h-8 text-xs gap-1.5"
+              title="Toggle viewing expired flyers in preview"
+            >
+              <CalendarClock className="h-3.5 w-3.5 text-primary" />
+              <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
+            </Button>
+          </div>
         </header>
 
         <main className="p-6 max-w-5xl mx-auto flex-1 w-full space-y-6">
@@ -304,16 +332,28 @@ function DynamicPreviewPage() {
             </div>
           </div>
 
-          <Button
-            variant={showExpiredAdmin ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
-            className="h-8 text-xs gap-1.5"
-            title="Toggle viewing expired flyers in preview"
-          >
-            <CalendarClock className="h-3.5 w-3.5 text-primary" />
-            <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchDialogOpen(true)}
+              className="h-8 text-xs gap-1.5"
+            >
+              <Search className="h-3.5 w-3.5 text-primary" />
+              <span>Search Deals</span>
+            </Button>
+
+            <Button
+              variant={showExpiredAdmin ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
+              className="h-8 text-xs gap-1.5"
+              title="Toggle viewing expired flyers in preview"
+            >
+              <CalendarClock className="h-3.5 w-3.5 text-primary" />
+              <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
+            </Button>
+          </div>
         </header>
 
         <main className="p-6 max-w-5xl mx-auto flex-1 w-full space-y-6">
@@ -432,16 +472,28 @@ function DynamicPreviewPage() {
             </div>
           </div>
 
-          <Button
-            variant={showExpiredAdmin ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
-            className="h-8 text-xs gap-1.5"
-            title="Toggle viewing expired flyers in preview"
-          >
-            <CalendarClock className="h-3.5 w-3.5 text-primary" />
-            <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchDialogOpen(true)}
+              className="h-8 text-xs gap-1.5"
+            >
+              <Search className="h-3.5 w-3.5 text-primary" />
+              <span>Search Deals</span>
+            </Button>
+
+            <Button
+              variant={showExpiredAdmin ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowExpiredAdmin(!showExpiredAdmin)}
+              className="h-8 text-xs gap-1.5"
+              title="Toggle viewing expired flyers in preview"
+            >
+              <CalendarClock className="h-3.5 w-3.5 text-primary" />
+              <span>Expired Flyers (Admin): {showExpiredAdmin ? "Shown" : "Hidden"}</span>
+            </Button>
+          </div>
         </header>
 
         <main className="p-6 max-w-5xl mx-auto flex-1 w-full space-y-6">
@@ -550,35 +602,47 @@ function DynamicPreviewPage() {
             </div>
           </div>
 
-          {/* Device Frame Switcher */}
-          <div className="flex items-center rounded-lg border bg-muted p-0.5">
+          {/* Device Frame Switcher & Search */}
+          <div className="flex items-center gap-2">
             <Button
-              variant={deviceMode === "mobile" ? "secondary" : "ghost"}
+              variant="outline"
               size="sm"
-              onClick={() => setDeviceMode("mobile")}
-              className="h-7 px-2.5 text-xs gap-1.5"
+              onClick={() => setSearchDialogOpen(true)}
+              className="h-8 px-2.5 text-xs gap-1.5"
             >
-              <Smartphone className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Phone</span>
+              <Search className="h-3.5 w-3.5 text-primary" />
+              <span className="hidden sm:inline">Search Deals</span>
             </Button>
-            <Button
-              variant={deviceMode === "tablet" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setDeviceMode("tablet")}
-              className="h-7 px-2.5 text-xs gap-1.5"
-            >
-              <Tablet className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Tablet</span>
-            </Button>
-            <Button
-              variant={deviceMode === "desktop" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setDeviceMode("desktop")}
-              className="h-7 px-2.5 text-xs gap-1.5"
-            >
-              <Monitor className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Desktop</span>
-            </Button>
+
+            <div className="flex items-center rounded-lg border bg-muted p-0.5">
+              <Button
+                variant={deviceMode === "mobile" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setDeviceMode("mobile")}
+                className="h-7 px-2.5 text-xs gap-1.5"
+              >
+                <Smartphone className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Phone</span>
+              </Button>
+              <Button
+                variant={deviceMode === "tablet" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setDeviceMode("tablet")}
+                className="h-7 px-2.5 text-xs gap-1.5"
+              >
+                <Tablet className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Tablet</span>
+              </Button>
+              <Button
+                variant={deviceMode === "desktop" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setDeviceMode("desktop")}
+                className="h-7 px-2.5 text-xs gap-1.5"
+              >
+                <Monitor className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Desktop</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -771,6 +835,13 @@ function DynamicPreviewPage() {
         onAddToList={(prod) => {
           setSelectedHotspotId(null);
         }}
+      />
+
+      {/* Global Deal Search Dialog with Cropped Flyer Banner Snippets */}
+      <DealSearchDialog
+        open={searchDialogOpen}
+        onOpenChange={setSearchDialogOpen}
+        onSelectResult={handleSelectSearchResult}
       />
     </div>
   );
