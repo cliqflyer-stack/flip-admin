@@ -185,7 +185,7 @@ export function FranchisesView({
             onClick={() => setIsCategoriesManagerOpen(true)}
             className="h-8 gap-1.5 text-xs font-medium"
           >
-            <Tags className="h-3.5 w-3.5 text-primary" />
+            <Tag className="h-3.5 w-3.5 text-primary" />
             Categories ({categories.length})
           </Button>
 
