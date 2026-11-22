@@ -79,6 +79,8 @@ export function FranchiseDialog({
   const [initial, setInitial] = useState("");
   const [categoryId, setCategoryId] = useState("groceries");
   const [website, setWebsite] = useState("");
+  const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState("");
+  const [termsUrl, setTermsUrl] = useState("");
   const [logoBg, setLogoBg] = useState("#075E50");
   const [logoColor, setLogoColor] = useState("#FFFFFF");
   const [logoUrl, setLogoUrl] = useState("");
@@ -104,6 +106,8 @@ export function FranchiseDialog({
         setInitial(franchise.initial || "");
         setCategoryId(franchise.categoryId || "groceries");
         setWebsite(franchise.website || "");
+        setPrivacyPolicyUrl(franchise.privacyPolicyUrl || "");
+        setTermsUrl(franchise.termsUrl || "");
         setLogoBg(franchise.logoBg || "#075E50");
         setLogoColor(franchise.logoColor || "#FFFFFF");
         setLogoUrl(franchise.logoUrl || "");
@@ -165,6 +169,8 @@ export function FranchiseDialog({
         initial: finalInitial,
         categoryId: categoryId || null,
         website: website.trim() || null,
+        privacyPolicyUrl: privacyPolicyUrl.trim() || null,
+        termsUrl: termsUrl.trim() || null,
         logoBg: logoBg || "#075E50",
         logoColor: logoColor || "#FFFFFF",
         logoUrl: logoUrl.trim() || null,
@@ -277,6 +283,26 @@ export function FranchiseDialog({
                 placeholder="https://..."
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Privacy Policy URL</Label>
+              <Input
+                placeholder="https://..."
+                value={privacyPolicyUrl}
+                onChange={(e) => setPrivacyPolicyUrl(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Terms &amp; Conditions URL</Label>
+              <Input
+                placeholder="https://..."
+                value={termsUrl}
+                onChange={(e) => setTermsUrl(e.target.value)}
                 className="h-8 text-xs"
               />
             </div>

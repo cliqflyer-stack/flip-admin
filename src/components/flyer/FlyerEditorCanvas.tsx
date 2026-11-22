@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type Konva from "konva";
-import { Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from "react-konva";
+import { Ellipse, Image as KonvaImage, Layer, Stage, Text, Transformer } from "react-konva";
 
 import { PRODUCTS } from "@/data/products";
 import { clamp01, type Hotspot, type HotspotRect } from "@/lib/flyer-storage";
@@ -239,18 +239,21 @@ export default function FlyerEditorCanvas({
               listening={false}
             />
 
-            {/* Hotspot bounding rectangles */}
+            {/* Hotspot areas: round shapes fitted to each stored bounding box.
+                Ellipse x/y is the centre, so the handlers below convert to and from the box. */}
             {hotspots.map((hotspot) => {
               const selected = hotspot.id === selectedId;
+              const radiusX = (hotspot.width * stageWidth) / 2;
+              const radiusY = (hotspot.height * stageHeight) / 2;
               return (
-                <Rect
+                <Ellipse
                   key={hotspot.id}
                   id={hotspot.id}
                   name="hotspot"
-                  x={hotspot.x * stageWidth}
-                  y={hotspot.y * stageHeight}
-                  width={hotspot.width * stageWidth}
-                  height={hotspot.height * stageHeight}
+                  x={hotspot.x * stageWidth + radiusX}
+                  y={hotspot.y * stageHeight + radiusY}
+                  radiusX={radiusX}
+                  radiusY={radiusY}
                   draggable={true}
                   stroke={selected ? STROKE_SELECTED : STROKE_IDLE}
                   strokeWidth={selected ? 3 : 2}
@@ -277,8 +280,8 @@ export default function FlyerEditorCanvas({
                   }}
                   onDragEnd={(event) => {
                     const node = event.target;
-                    const newX = Math.max(0, Math.min(1 - hotspot.width, node.x() / stageWidth));
-                    const newY = Math.max(0, Math.min(1 - hotspot.height, node.y() / stageHeight));
+                    const newX = Math.max(0, Math.min(1 - hotspot.width, node.x() / stageWidth - hotspot.width / 2));
+                    const newY = Math.max(0, Math.min(1 - hotspot.height, node.y() / stageHeight - hotspot.height / 2));
                     onUpdate(hotspot.id, {
                       x: clamp01(newX),
                       y: clamp01(newY),
@@ -287,15 +290,15 @@ export default function FlyerEditorCanvas({
                     });
                   }}
                   onTransformEnd={(event) => {
-                    const node = event.target;
+                    const node = event.target as Konva.Ellipse;
                     const scaleX = node.scaleX();
                     const scaleY = node.scaleY();
                     node.scaleX(1);
                     node.scaleY(1);
-                    const newWidth = clamp01((node.width() * scaleX) / stageWidth);
-                    const newHeight = clamp01((node.height() * scaleY) / stageHeight);
-                    const newX = clamp01(node.x() / stageWidth);
-                    const newY = clamp01(node.y() / stageHeight);
+                    const newWidth = clamp01((node.radiusX() * 2 * scaleX) / stageWidth);
+                    const newHeight = clamp01((node.radiusY() * 2 * scaleY) / stageHeight);
+                    const newX = clamp01(node.x() / stageWidth - newWidth / 2);
+                    const newY = clamp01(node.y() / stageHeight - newHeight / 2);
                     onUpdate(hotspot.id, {
                       x: Math.min(newX, 1 - newWidth),
                       y: Math.min(newY, 1 - newHeight),
@@ -337,11 +340,11 @@ export default function FlyerEditorCanvas({
 
             {/* Current Dragging Selection Draft Box */}
             {draft && (
-              <Rect
-                x={draft.x}
-                y={draft.y}
-                width={draft.width}
-                height={draft.height}
+              <Ellipse
+                x={draft.x + draft.width / 2}
+                y={draft.y + draft.height / 2}
+                radiusX={draft.width / 2}
+                radiusY={draft.height / 2}
                 stroke="#dc2626"
                 strokeWidth={2}
                 dash={[8, 5]}

@@ -115,3 +115,12 @@ describe("Flyer Sizing & Mobile Optimization", () => {
     expect(zoomedBounds.drawHeight).toBe(Math.round(baseBounds.drawHeight * 1.5));
   });
 });
+
+describe("Long scrolling flyers", () => {
+  it("accepts very tall flyers as long scroll flyers without requiring a crop", async () => {
+    const { isLongScrollFlyer } = await import("@/lib/flyer-sizing");
+    expect(isLongScrollFlyer(1080, 3800)).toBe(true); // ~3.5:1
+    expect(isLongScrollFlyer(1080, 1920)).toBe(false); // standard 9:16
+    expect(isLongScrollFlyer(0, 0)).toBe(false);
+  });
+});

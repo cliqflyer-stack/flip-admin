@@ -64,6 +64,17 @@ export const FLYER_SIZE_PRESETS: FlyerSizePreset[] = [
   },
 ];
 
+/**
+ * Long scrolling flyers (height / width at or above this) are published as-is:
+ * the customer app scrolls them, so they never need to be cropped or letterboxed.
+ */
+export const LONG_FLYER_MIN_RATIO = 1.8;
+
+export function isLongScrollFlyer(width: number, height: number): boolean {
+  if (width <= 0 || height <= 0) return false;
+  return height / width >= LONG_FLYER_MIN_RATIO;
+}
+
 export interface SizingEvaluation {
   isMatch: boolean;
   aspectRatio: number;

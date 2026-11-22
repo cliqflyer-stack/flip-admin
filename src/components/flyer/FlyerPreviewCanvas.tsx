@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Konva from "konva";
-import { Group, Image as KonvaImage, Layer, Line, Rect, Stage } from "react-konva";
-import { Minus, Maximize, Plus } from "lucide-react";
+import { Group, Image as KonvaImage, Layer, Rect, Shape, Stage } from "react-konva";
+import { Minus, Maximize, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import type { Hotspot } from "@/lib/flyer-storage";
@@ -12,8 +12,16 @@ interface FlyerPreviewCanvasProps {
   imageWidth: number;
   imageHeight: number;
   hotspots: Hotspot[];
+  /** The most recently tapped hotspot. It animates its ring and is scrolled into view. */
   selectedHotspotId: string | null;
+  /** Every hotspot tapped so far. Their rings stay on the flyer. */
+  markedHotspotIds: string[];
+  /** True while the product bottom sheet is open, so the reveal keeps the item above it. */
+  isSheetOpen: boolean;
+  /** Called with a hotspot id on tap, or null when empty space is tapped. */
   onSelectHotspot: (hotspotId: string | null) => void;
+  /** Removes every ring from the flyer. */
+  onClearMarks: () => void;
 }
 
 interface ViewState {
@@ -25,47 +33,181 @@ interface ViewState {
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const HIT_FILL = "rgba(255,255,255,0.001)";
+// Approximate share of the viewport the bottom sheet covers when open.
+const SHEET_VIEWPORT_SHARE = 0.45;
+
+// Brand "parrot" green: Electric Volt Lime (--color-brand-lime) from the admin theme.
+const PEN_INK = "#D8F36A";
+const PEN_DRAW_MS = 480;
+
+interface PenPoint {
+  x: number;
+  y: number;
+  pressure: number; // 0..1, scales the nib width along the stroke
+}
 
 /**
- * Generates organic, hand-drawn marker ring loop points.
- * Simulates a shopper circling a deal with a yellow felt highlighter:
- * - Starts at ~10 o'clock (top-left)
- * - Sweeps ~402 degrees clockwise with natural hand curvature wobbles
- * - Overlaps past the starting point with a slight organic flare
+ * Generates a hand-drawn marker loop around a deal, as a pen would draw it:
+ * - Starts at the lower-left with a thin pen-down tail
+ * - Sweeps ~370 degrees counter-clockwise with light hand wobble
+ * - Firm body through the sides, lifts off with a thin rounded finish just inside the start
  */
-function createSketchedRingPoints(rx: number, ry: number): number[] {
-  const points: number[] = [];
-  const numSteps = 52;
-  const startAngle = -2.25; // ~10 o'clock
-  const totalAngle = Math.PI * 2 + 0.72; // ~402 degrees of sweep
+function createPenRingPoints(rx: number, ry: number): PenPoint[] {
+  const points: PenPoint[] = [];
+  const numSteps = 120;
+  // Reference shape: starts at the lower-left tail, sweeps counter-clockwise around the deal,
+  // and finishes just short of the start, tucked slightly inside it
+  const startAngle = 2.37; // ~lower-left
+  const totalAngle = -(Math.PI * 2 + 0.5); // ~370 degrees, negative = counter-clockwise on screen
 
   for (let i = 0; i <= numSteps; i++) {
     const t = i / numSteps;
     const angle = startAngle + t * totalAngle;
 
-    // Organic imperfections: gentle harmonic wobbles resembling natural hand movement
-    const wobble1 = Math.sin(angle * 2.5) * 0.032;
-    const wobble2 = Math.cos(angle * 4.2) * 0.018;
-    const wobble3 = Math.sin(angle * 7.1) * 0.01;
+    // Light hand wobble only, so the loop reads as round rather than lumpy
+    const wobble1 = Math.sin(angle * 2.5) * 0.012;
+    const wobble2 = Math.cos(angle * 4.2) * 0.006;
+    const wobble3 = Math.sin(angle * 7.1) * 0.003;
     const totalWobble = wobble1 + wobble2 + wobble3;
 
-    // Overlapping tail flare (when looping past 360 degrees)
-    const overlapProgress = Math.max(0, (t - 0.78) / 0.22);
-    const tailFlare = overlapProgress * 0.07;
+    // Finishing tail tucks slightly inside the start so the two ends read as separate strokes
+    const tailProgress = Math.max(0, (t - 0.85) / 0.15);
+    const tailTuck = 1 - tailProgress * 0.08;
 
-    const curRx = rx * (1 + totalWobble + tailFlare);
-    const curRy = ry * (1 + totalWobble * 0.85 + tailFlare);
+    const curRx = rx * (1 + totalWobble) * tailTuck;
+    const curRy = ry * (1 + totalWobble * 0.85) * tailTuck;
 
-    const x = Math.cos(angle) * curRx;
-    const y = Math.sin(angle) * curRy;
-    points.push(Math.round(x * 100) / 100, Math.round(y * 100) / 100);
+    // Pen pressure: light pen-down tail, full body through the sides, thin rounded finish
+    const pressureIn = 0.3 + 0.7 * Math.min(1, t / 0.12);
+    const pressureOut = t > 0.85 ? Math.max(0.2, (1 - t) / 0.15) : 1;
+    const jitter = 0.9 + 0.1 * Math.sin(angle * 5.3 + 1.2);
+
+    points.push({
+      x: Math.cos(angle) * curRx,
+      y: Math.sin(angle) * curRy,
+      pressure: pressureIn * pressureOut * jitter,
+    });
   }
   return points;
 }
 
 /**
+ * Paints the first `progress` (0..1) of the pen loop onto the canvas.
+ * Ink is drawn segment by segment so the nib width follows the pressure curve.
+ */
+function drawPenStroke(
+  ctx: Konva.Context,
+  points: PenPoint[],
+  progress: number,
+  baseWidth: number,
+) {
+  if (points.length < 2 || progress <= 0) return;
+  const last = Math.min(points.length - 1, Math.max(1, Math.floor((points.length - 1) * progress)));
+
+  const drawn = points.slice(0, last + 1);
+  const start = drawn[0];
+  if (!start) return;
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  // Ink: variable-width nib stroke, fully opaque
+  ctx.strokeStyle = PEN_INK;
+  for (let i = 1; i < drawn.length; i++) {
+    const a = drawn[i - 1];
+    const b = drawn[i];
+    if (!a || !b) continue;
+    ctx.lineWidth = Math.max(1, baseWidth * (a.pressure + b.pressure) * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+}
+
+interface PenMarkProps {
+  hotspot: Hotspot;
+  stageWidth: number;
+  stageHeight: number;
+  /** Only the mark that was just tapped draws itself; the others are already inked. */
+  animate: boolean;
+}
+
+/** A hand-drawn ring around one hotspot. It stays on the flyer until the user taps empty space. */
+function PenMark({ hotspot, stageWidth, stageHeight, animate }: PenMarkProps) {
+  const groupRef = useRef<Konva.Group>(null);
+  const shapeRef = useRef<Konva.Shape>(null);
+  const progressRef = useRef(animate ? 0 : 1);
+
+  const hsWidth = hotspot.width * stageWidth;
+  const hsHeight = hotspot.height * stageHeight;
+  const centerX = (hotspot.x + hotspot.width / 2) * stageWidth;
+  const centerY = (hotspot.y + hotspot.height / 2) * stageHeight;
+
+  // Responsive radii with comfortable padding around the deal
+  const rawRx = Math.max((hsWidth / 2) * 1.22, 28);
+  const rawRy = Math.max((hsHeight / 2) * 1.2, 28);
+  // Balance aspect ratio so it remains an organic oval rather than an extreme sliver
+  const ringRx = Math.max(rawRx, rawRy * 0.55);
+  const ringRy = Math.max(rawRy, rawRx * 0.55);
+
+  const penPoints = useMemo(() => createPenRingPoints(ringRx, ringRy), [ringRx, ringRy]);
+  // Nib width scales with the stage so the ink stays proportional on phones and desktops
+  const penWidth = Math.max(5.5, Math.min(8, stageWidth / 65));
+
+  // Pen-drawing animation: the nib traces the loop once, then the ink stays put.
+  // Runs only on mount, so a later tap elsewhere does not cut this stroke short.
+  useEffect(() => {
+    const group = groupRef.current;
+    const shape = shapeRef.current;
+    if (!animate || !group || !shape) return;
+
+    progressRef.current = 0;
+    group.opacity(0);
+
+    const fadeIn = new Konva.Tween({
+      node: group,
+      opacity: 1,
+      duration: 0.16,
+      easing: Konva.Easings.EaseOut,
+    });
+    fadeIn.play();
+
+    const startTime = performance.now();
+    let raf = 0;
+
+    const animateStroke = (now: number) => {
+      const raw = Math.min(1, (now - startTime) / PEN_DRAW_MS);
+      // Quick start, slower finish as the pen closes the loop
+      progressRef.current = 1 - Math.pow(1 - raw, 2.2);
+      shape.getLayer()?.batchDraw();
+
+      if (raw < 1) raf = requestAnimationFrame(animateStroke);
+    };
+
+    raf = requestAnimationFrame(animateStroke);
+
+    return () => {
+      fadeIn.destroy();
+      cancelAnimationFrame(raf);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Group ref={groupRef} x={centerX} y={centerY} listening={false}>
+      <Shape
+        ref={shapeRef}
+        listening={false}
+        sceneFunc={(ctx) => drawPenStroke(ctx, penPoints, progressRef.current, penWidth)}
+      />
+    </Group>
+  );
+}
+
+/**
  * Customer-side viewer: zoom/pan the flyer, tap a product to select it
- * (sketched yellow marker ring highlight) or tap empty space to deselect.
+ * (sketched marker ring highlight) or tap empty space to clear all marks.
  */
 export default function FlyerPreviewCanvas({
   imageUrl,
@@ -73,14 +215,15 @@ export default function FlyerPreviewCanvas({
   imageHeight,
   hotspots,
   selectedHotspotId,
+  markedHotspotIds,
+  isSheetOpen,
   onSelectHotspot,
+  onClearMarks,
 }: FlyerPreviewCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
-  const highlightGroupRef = useRef<Konva.Group>(null);
-  const mainLineRef = useRef<Konva.Line>(null);
-  const glowLineRef = useRef<Konva.Line>(null);
   const panRef = useRef({ active: false, moved: 0, lastX: 0, lastY: 0 });
+  const revealedIdRef = useRef<string | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [view, setView] = useState<ViewState>({ scale: 1, x: 0, y: 0 });
   const image = useHtmlImage(imageUrl);
@@ -131,118 +274,34 @@ export default function FlyerPreviewCanvas({
     });
   };
 
-  const selectedHotspot = hotspots.find((h) => h.id === selectedHotspotId) ?? null;
+  const markedHotspots = hotspots.filter((h) => markedHotspotIds.includes(h.id));
 
-  // Calculate sketched ring geometry around selected hotspot
-  const hsWidth = selectedHotspot ? selectedHotspot.width * stageWidth : 0;
-  const hsHeight = selectedHotspot ? selectedHotspot.height * stageHeight : 0;
-  const hsCenterX = selectedHotspot
-    ? (selectedHotspot.x + selectedHotspot.width / 2) * stageWidth
-    : 0;
-  const hsCenterY = selectedHotspot
-    ? (selectedHotspot.y + selectedHotspot.height / 2) * stageHeight
-    : 0;
-
-  // Responsive radii with comfortable padding around the deal
-  const rawRx = Math.max((hsWidth / 2) * 1.22, 28);
-  const rawRy = Math.max((hsHeight / 2) * 1.20, 28);
-  // Balance aspect ratio so it remains an organic oval rather than an extreme sliver
-  const ringRx = Math.max(rawRx, rawRy * 0.55);
-  const ringRy = Math.max(rawRy, rawRx * 0.55);
-
-  const ringPoints = useMemo(() => {
-    if (!selectedHotspot || stageWidth <= 0) return [];
-    return createSketchedRingPoints(ringRx, ringRy);
-  }, [selectedHotspot?.id, ringRx, ringRy, stageWidth]);
-
-  // Auto-scroll and pan into focus when a hotspot is selected
+  // Bring a newly tapped item into view without centering the page on it.
+  // Scrolls only if the item is off-screen, and keeps it above the bottom sheet when open.
   useEffect(() => {
-    if (!selectedHotspotId || !selectedHotspot || stageWidth <= 0 || stageHeight <= 0) return;
+    const container = containerRef.current;
+    if (!selectedHotspotId || !container || stageWidth <= 0 || stageHeight <= 0) return;
+    if (revealedIdRef.current === selectedHotspotId) return;
+    const hotspot = hotspots.find((h) => h.id === selectedHotspotId);
+    if (!hotspot) return;
+    revealedIdRef.current = selectedHotspotId;
 
-    // Zoom comfortably to focus on the deal (e.g. 1.8x to 2.2x zoom)
-    const targetScale = Math.min(2.5, Math.max(1.6, MIN_ZOOM * 1.9));
-    const targetCenterX = (selectedHotspot.x + selectedHotspot.width / 2) * stageWidth;
-    const targetCenterY = (selectedHotspot.y + selectedHotspot.height / 2) * stageHeight;
-
-    const viewportCenterX = stageWidth / 2;
-    const viewportCenterY = Math.min(stageHeight / 2, 380);
-
-    const desiredX = viewportCenterX - targetCenterX * targetScale;
-    const desiredY = viewportCenterY - targetCenterY * targetScale;
-
-    setView(clampView({
-      scale: targetScale,
-      x: desiredX,
-      y: desiredY,
-    }));
-
-    // Scroll browser into view if canvas is scrolled past viewport
-    containerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const anchor = document.createElement("div");
+    anchor.style.position = "absolute";
+    anchor.style.pointerEvents = "none";
+    anchor.style.left = `${view.x + hotspot.x * stageWidth * view.scale}px`;
+    anchor.style.top = `${view.y + hotspot.y * stageHeight * view.scale}px`;
+    anchor.style.width = `${hotspot.width * stageWidth * view.scale}px`;
+    anchor.style.height = `${hotspot.height * stageHeight * view.scale}px`;
+    if (isSheetOpen) {
+      anchor.style.scrollMarginBottom = `${Math.round(window.innerHeight * SHEET_VIEWPORT_SHARE)}px`;
+    }
+    container.appendChild(anchor);
+    anchor.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    anchor.remove();
+    // Runs only when a new item is tapped, not on resize or zoom.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHotspotId, stageWidth, stageHeight]);
-
-  // Sketched marker ring animation: quick organic draw-on (~260ms) + settle into solid sketched ring
-  useEffect(() => {
-    const group = highlightGroupRef.current;
-    const mainLine = mainLineRef.current;
-    const glowLine = glowLineRef.current;
-    if (!group || !selectedHotspotId || ringPoints.length === 0) return;
-
-    // Approximate loop perimeter for the draw-in stroke
-    const approxLength = Math.PI * (ringRx + ringRy) * 1.25;
-
-    // Set initial stroke-dash for the hand-drawn circling effect
-    if (mainLine) {
-      mainLine.dash([approxLength, approxLength]);
-      mainLine.dashOffset(approxLength);
-    }
-    if (glowLine) {
-      glowLine.dash([approxLength, approxLength]);
-      glowLine.dashOffset(approxLength);
-    }
-
-    group.opacity(0);
-    group.scale({ x: 0.92, y: 0.92 });
-
-    const scaleTween = new Konva.Tween({
-      node: group,
-      opacity: 1,
-      scaleX: 1,
-      scaleY: 1,
-      duration: 0.28,
-      easing: Konva.Easings.BackEaseOut,
-    });
-    scaleTween.play();
-
-    const startTime = performance.now();
-    const drawDuration = 260; // ms: fast energetic pen circling
-    let raf = 0;
-
-    const animateStroke = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(1, elapsed / drawDuration);
-      // Ease out cubic for a natural hand stroke that decelerates as the pen lifts
-      const ease = 1 - Math.pow(1 - progress, 3);
-      const currentOffset = approxLength * (1 - ease);
-
-      if (mainLine) mainLine.dashOffset(currentOffset);
-      if (glowLine) glowLine.dashOffset(currentOffset);
-
-      if (progress < 1) {
-        raf = requestAnimationFrame(animateStroke);
-      } else {
-        // Drawing complete: settle into solid sketched line (no marching dots!)
-        if (mainLine) mainLine.dash([]);
-        if (glowLine) glowLine.dash([]);
-      }
-    };
-
-    raf = requestAnimationFrame(animateStroke);
-
-    return () => {
-      scaleTween.destroy();
-      cancelAnimationFrame(raf);
-    };
-  }, [selectedHotspotId, ringRx, ringRy, ringPoints]);
 
   const handleWheel = (event: Konva.KonvaEventObject<WheelEvent>) => {
     event.evt.preventDefault();
@@ -324,41 +383,28 @@ export default function FlyerPreviewCanvas({
                 }}
               />
             ))}
-            {selectedHotspot && ringPoints.length > 0 && (
-              <Group
-                ref={highlightGroupRef}
-                x={hsCenterX}
-                y={hsCenterY}
-                listening={false}
-              >
-                {/* Under-glow: soft yellow highlighter ink bleed */}
-                <Line
-                  ref={glowLineRef}
-                  points={ringPoints}
-                  stroke="rgba(250, 204, 21, 0.28)"
-                  strokeWidth={Math.max(7, Math.min(11, stageWidth / 50))}
-                  tension={0.36}
-                  lineCap="round"
-                  lineJoin="round"
-                  closed={false}
-                  listening={false}
-                />
-                {/* Main hand-drawn highlighter stroke */}
-                <Line
-                  ref={mainLineRef}
-                  points={ringPoints}
-                  stroke="#FACC15"
-                  strokeWidth={Math.max(4, Math.min(6, stageWidth / 85))}
-                  tension={0.36}
-                  lineCap="round"
-                  lineJoin="round"
-                  closed={false}
-                  listening={false}
-                />
-              </Group>
-            )}
+            {markedHotspots.map((hotspot) => (
+              <PenMark
+                key={hotspot.id}
+                hotspot={hotspot}
+                stageWidth={stageWidth}
+                stageHeight={stageHeight}
+                animate={hotspot.id === selectedHotspotId}
+              />
+            ))}
           </Layer>
         </Stage>
+      )}
+      {markedHotspotIds.length > 0 && (
+        <Button
+          variant="secondary"
+          size="sm"
+          className="absolute top-3 left-3 h-8 gap-1.5 px-2.5 text-xs shadow-sm"
+          onClick={onClearMarks}
+        >
+          <X className="h-3.5 w-3.5" />
+          Clear marks
+        </Button>
       )}
       <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 rounded-lg border bg-background/90 p-1 shadow-sm backdrop-blur">
         <Button

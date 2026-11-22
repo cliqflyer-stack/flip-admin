@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, ChevronsUpDown, Loader2, Package, Tag, Upload } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,15 +31,20 @@ import {
   resolveImageUrl,
   fetchCategories,
   PRODUCT_PRESET_IMAGES,
+  type ApiFlyer,
   type ApiProduct,
   type Category,
   type Merchant,
+  type ProductOption,
 } from "@/lib/api-client";
+import { ProductOptionsEditor } from "./ProductOptionsEditor";
 import { cn } from "@/lib/utils";
 
 interface ProductFormScreenProps {
   product?: ApiProduct | null;
   merchants: Merchant[];
+  /** Products are saved per flyer, so every product must be attached to one. */
+  flyers?: ApiFlyer[];
   onSave: (product: ApiProduct, isEdit: boolean) => void;
   onCancel: () => void;
 }
@@ -63,6 +68,7 @@ const COMMON_CATEGORIES = [
 export function ProductFormScreen({
   product,
   merchants,
+  flyers = [],
   onSave,
   onCancel,
 }: ProductFormScreenProps) {
@@ -74,6 +80,9 @@ export function ProductFormScreen({
   const [dynamicCategories, setDynamicCategories] = useState<string[]>(COMMON_CATEGORIES);
   const [unit, setUnit] = useState(product?.unit || "Each");
   const [sku, setSku] = useState(product?.sku || "");
+  const [upc, setUpc] = useState(product?.upc || "");
+  const [options, setOptions] = useState<ProductOption[]>(product?.options ?? []);
+  const [flyerId, setFlyerId] = useState(product?.flyerId || flyers[0]?.id || "");
   const [regularPrice, setRegularPrice] = useState(product ? String(product.regularPrice) : "4.99");
   const [offerPrice, setOfferPrice] = useState(product ? String(product.offerPrice) : "3.49");
   const [merchantId, setMerchantId] = useState(product?.merchantId || merchants[0]?.id || "");
@@ -121,6 +130,10 @@ export function ProductFormScreen({
       toast.error("Product name is required.");
       return;
     }
+    if (!flyerId) {
+      toast.error("Choose the flyer this product belongs to.");
+      return;
+    }
     if (isNaN(regNum) || isNaN(offNum)) {
       toast.error("Please enter valid prices.");
       return;
@@ -133,7 +146,12 @@ export function ProductFormScreen({
         brand: brand.trim() || name.trim(),
         category: category.trim() || "General",
         unit: unit.trim() || undefined,
-        sku: sku.trim() || undefined,
+        sku: sku.trim() || null,
+        upc: upc.trim() || null,
+        options: options
+          .map((o) => ({ label: o.label.trim(), value: o.value.trim() }))
+          .filter((o) => o.label && o.value),
+        flyerId: flyerId || null,
         regularPrice: regularPrice.trim(),
         offerPrice: offerPrice.trim(),
         merchantId: merchantId || undefined,
@@ -294,7 +312,40 @@ export function ProductFormScreen({
                   className="text-xs h-9"
                 />
               </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-upc" className="text-xs font-medium">
+                  UPC
+                </Label>
+                <Input
+                  id="prod-upc"
+                  placeholder="e.g. 036000291452"
+                  value={upc}
+                  onChange={(e) => setUpc(e.target.value)}
+                  className="text-xs h-9"
+                />
+              </div>
             </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-flyer" className="text-xs font-medium">
+                Flyer <span className="text-destructive">*</span>
+              </Label>
+              <Select value={flyerId} onValueChange={setFlyerId}>
+                <SelectTrigger id="prod-flyer" className="text-xs h-9">
+                  <SelectValue placeholder="Select the flyer this product belongs to" />
+                </SelectTrigger>
+                <SelectContent>
+                  {flyers.map((f) => (
+                    <SelectItem key={f.id} value={f.id} className="text-xs">
+                      {f.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <ProductOptionsEditor value={options} onChange={setOptions} />
 
             <div className="space-y-1.5">
               <Label htmlFor="merchant-owner" className="text-xs font-medium">

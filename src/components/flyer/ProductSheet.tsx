@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Check, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,6 +35,20 @@ export function ProductSheet({
 
   const isControlled = open !== undefined;
   const isOpen = isControlled ? open : product !== null;
+
+  // Vaul renders through a modal Radix Dialog, which sets body pointer-events to "none" while open
+  // and blocks taps on the flyer behind the sheet. Keep the page interactive while the sheet is open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const body = document.body;
+    const allowPointerEvents = () => {
+      if (body.style.pointerEvents !== "auto") body.style.pointerEvents = "auto";
+    };
+    allowPointerEvents();
+    const observer = new MutationObserver(allowPointerEvents);
+    observer.observe(body, { attributes: true, attributeFilter: ["style"] });
+    return () => observer.disconnect();
+  }, [isOpen]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (onOpenChange) {
@@ -78,6 +92,8 @@ export function ProductSheet({
     <Drawer open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <DrawerContent
         hideOverlay
+        // Taps outside the sheet (e.g. another flyer item) must not dismiss it.
+        onPointerDownOutside={(event) => event.preventDefault()}
         className="mx-auto max-w-md bg-background/95 backdrop-blur-md border border-b-0 border-border/80 shadow-[0_-12px_36px_rgba(0,0,0,0.14)] rounded-t-2xl"
       >
         <DrawerHeader className="text-left pb-2">

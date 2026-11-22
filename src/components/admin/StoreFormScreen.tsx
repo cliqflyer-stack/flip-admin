@@ -68,6 +68,8 @@ export function StoreFormScreen({
   const [postalCode, setPostalCode] = useState(storeLocation?.postalCode || "");
   const [phone, setPhone] = useState(storeLocation?.phone || "");
   const [logoUrl, setLogoUrl] = useState(storeLocation?.logoUrl || "");
+  const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState(storeLocation?.privacyPolicyUrl || "");
+  const [termsUrl, setTermsUrl] = useState(storeLocation?.termsUrl || "");
 
   // Coordinates
   const [latitude, setLatitude] = useState<number | null>(
@@ -139,6 +141,8 @@ export function StoreFormScreen({
         latitude: latitude !== null ? Number(latitude) : undefined,
         longitude: longitude !== null ? Number(longitude) : undefined,
         logoUrl: logoUrl.trim() || undefined,
+        privacyPolicyUrl: privacyPolicyUrl.trim() || null,
+        termsUrl: termsUrl.trim() || null,
       };
 
       if (isEdit && storeLocation) {
@@ -428,6 +432,32 @@ export function StoreFormScreen({
                   placeholder="(905) 555-0199"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="store-privacy" className="text-xs font-medium">
+                  Privacy Policy URL (optional override)
+                </Label>
+                <Input
+                  id="store-privacy"
+                  placeholder="Leave empty to use the franchise policy"
+                  value={privacyPolicyUrl}
+                  onChange={(e) => setPrivacyPolicyUrl(e.target.value)}
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="store-terms" className="text-xs font-medium">
+                  Terms &amp; Conditions URL (optional override)
+                </Label>
+                <Input
+                  id="store-terms"
+                  placeholder="Leave empty to use the franchise terms"
+                  value={termsUrl}
+                  onChange={(e) => setTermsUrl(e.target.value)}
                   className="text-xs h-9"
                 />
               </div>

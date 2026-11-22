@@ -25,6 +25,7 @@ import {
   Crop,
   Sparkles,
   Image as ImageIcon,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +61,7 @@ import {
   updateFlyer,
   uploadImage,
   cropBannerArea,
+  deleteProduct,
   type ApiFlyer,
   type ApiProduct,
   type Merchant,
@@ -83,6 +85,8 @@ interface EditorViewProps {
   merchants?: Merchant[];
   storeLocations?: StoreLocation[];
   onProductCreated?: (product: ApiProduct) => void;
+  onProductUpdated?: (product: ApiProduct) => void;
+  onProductDeleted?: (productId: string) => void;
   hotspots: Hotspot[];
   selectedHotspotId: string | null;
   onSelectHotspot: (id: string | null) => void;
@@ -105,6 +109,8 @@ export function EditorView({
   merchants = [],
   storeLocations = [],
   onProductCreated,
+  onProductUpdated,
+  onProductDeleted,
   hotspots,
   selectedHotspotId,
   onSelectHotspot,
@@ -130,6 +136,7 @@ export function EditorView({
   const [drawProduct, setDrawProduct] = useState<ApiProduct | null>(null);
   const [zoom, setZoom] = useState(1.0);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<ApiProduct | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [autoDetectOpen, setAutoDetectOpen] = useState(false);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -592,7 +599,7 @@ export function EditorView({
                 1. Product Catalog
               </h2>
               <span className="text-[10px] text-muted-foreground">
-                {catalogProducts.length} items
+                {catalogProducts.length} items · this flyer
               </span>
             </div>
 
@@ -747,6 +754,41 @@ export function EditorView({
                         Ready
                       </Badge>
                     )}
+                    <div className="flex flex-col shrink-0">
+                      <button
+                        type="button"
+                        title="Edit product details"
+                        aria-label={`Edit ${p.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProductToEdit(p);
+                          setProductDialogOpen(true);
+                        }}
+                        className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Remove product from this flyer"
+                        aria-label={`Remove ${p.name}`}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!window.confirm(`Remove "${p.name}" from this flyer? Its hotspots will be removed too.`)) return;
+                          try {
+                            await deleteProduct(p.id);
+                            onProductDeleted?.(p.id);
+                            if (drawProduct?.id === p.id) setDrawProduct(null);
+                            toast.success(`Removed "${p.name}".`);
+                          } catch (err: any) {
+                            toast.error(`Could not remove product: ${err.message}`);
+                          }
+                        }}
+                        className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -1092,13 +1134,23 @@ export function EditorView({
       {/* Product Creator Dialog within Flyer Studio */}
       <ProductDialog
         open={productDialogOpen}
-        onOpenChange={setProductDialogOpen}
+        onOpenChange={(open) => {
+          setProductDialogOpen(open);
+          if (!open) setProductToEdit(null);
+        }}
+        productToEdit={productToEdit}
         merchants={merchants}
         defaultMerchantId={currentFlyer?.merchantId}
-        onSave={(newProd) => {
-          if (onProductCreated) onProductCreated(newProd);
-          setDrawProduct(newProd);
-          toast.success(`"${newProd.name}" ready to place! Click & drag a rectangle on the flyer.`);
+        flyerId={selectedFlyerId || null}
+        onSave={(saved, isEdit) => {
+          if (isEdit) {
+            onProductUpdated?.(saved);
+            if (drawProduct?.id === saved.id) setDrawProduct(saved);
+            return;
+          }
+          if (onProductCreated) onProductCreated(saved);
+          setDrawProduct(saved);
+          toast.success(`"${saved.name}" ready to place! Click & drag a rectangle on the flyer.`);
         }}
       />
 

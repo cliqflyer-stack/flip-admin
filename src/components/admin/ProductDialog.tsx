@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ImagePlus, Loader2, Package, Sparkles, Tag, Upload, Check, Percent } from "lucide-react";
+import { ImagePlus, Loader2, Package, Plus, Sparkles, Tag, Trash2, Upload, Check, Percent } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -30,9 +30,12 @@ import {
   resolveImageUrl,
   fetchCategories,
   PRODUCT_PRESET_IMAGES,
+  type ApiFlyer,
   type ApiProduct,
   type Merchant,
+  type ProductOption,
 } from "@/lib/api-client";
+import { ProductOptionsEditor } from "./ProductOptionsEditor";
 
 interface ProductDialogProps {
   open: boolean;
@@ -40,6 +43,10 @@ interface ProductDialogProps {
   productToEdit?: ApiProduct | null;
   merchants: Merchant[];
   defaultMerchantId?: string;
+  /** When set (Flyer Studio), the product is saved to this flyer and the flyer picker is hidden. */
+  flyerId?: string | null;
+  /** Flyers to choose from when creating outside the studio (products are saved per flyer). */
+  flyers?: ApiFlyer[];
   onSave: (product: ApiProduct, isEdit: boolean) => void;
 }
 
@@ -64,6 +71,8 @@ export function ProductDialog({
   productToEdit,
   merchants,
   defaultMerchantId,
+  flyerId,
+  flyers = [],
   onSave,
 }: ProductDialogProps) {
   const isEdit = Boolean(productToEdit);
@@ -75,6 +84,9 @@ export function ProductDialog({
   const [category, setCategory] = useState("Groceries");
   const [unit, setUnit] = useState("each");
   const [sku, setSku] = useState("");
+  const [upc, setUpc] = useState("");
+  const [options, setOptions] = useState<ProductOption[]>([]);
+  const [selectedFlyerId, setSelectedFlyerId] = useState<string>("");
   const [regularPrice, setRegularPrice] = useState("9.99");
   const [offerPrice, setOfferPrice] = useState("6.99");
   const [description, setDescription] = useState("");
@@ -101,6 +113,9 @@ export function ProductDialog({
       setCategory(productToEdit.category || "Groceries");
       setUnit(productToEdit.unit || "each");
       setSku(productToEdit.sku || "");
+      setUpc(productToEdit.upc || "");
+      setOptions(productToEdit.options ?? []);
+      setSelectedFlyerId(productToEdit.flyerId || flyerId || "");
       setRegularPrice(String(productToEdit.regularPrice || "0.00"));
       setOfferPrice(String(productToEdit.offerPrice || "0.00"));
       setDescription(productToEdit.description || "");
@@ -113,6 +128,9 @@ export function ProductDialog({
       setCategory("Groceries");
       setUnit("each");
       setSku("");
+      setUpc("");
+      setOptions([]);
+      setSelectedFlyerId(flyerId || "");
       setRegularPrice("9.99");
       setOfferPrice("6.99");
       setDescription("");
@@ -120,7 +138,7 @@ export function ProductDialog({
       setImageUrl(PRODUCT_PRESET_IMAGES[0].url);
       setImageTab("preset");
     }
-  }, [productToEdit, open, defaultMerchantId, merchants]);
+  }, [productToEdit, open, defaultMerchantId, merchants, flyerId]);
 
   const regNum = parseFloat(regularPrice) || 0;
   const offNum = parseFloat(offerPrice) || 0;
@@ -161,6 +179,15 @@ export function ProductDialog({
       return;
     }
 
+    const effectiveFlyerId = flyerId || selectedFlyerId || null;
+    if (!effectiveFlyerId) {
+      toast.error("Choose the flyer this product belongs to");
+      return;
+    }
+    const cleanOptions = options
+      .map((o) => ({ label: o.label.trim(), value: o.value.trim() }))
+      .filter((o) => o.label && o.value);
+
     setIsSubmitting(true);
     try {
       const payload: Partial<ApiProduct> = {
@@ -168,7 +195,10 @@ export function ProductDialog({
         brand: brand.trim(),
         category: category.trim() || "General",
         unit: unit.trim() || "each",
-        sku: sku.trim() || undefined,
+        sku: sku.trim() || null,
+        upc: upc.trim() || null,
+        options: cleanOptions,
+        flyerId: effectiveFlyerId,
         regularPrice: regNum,
         offerPrice: offNum,
         description: description.trim() || `${brand.trim()} ${name.trim()} promotional deal item.`,
@@ -407,7 +437,44 @@ export function ProductDialog({
                   className="text-xs font-mono"
                 />
               </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="prod-upc" className="text-xs font-semibold">
+                  UPC (Optional)
+                </Label>
+                <Input
+                  id="prod-upc"
+                  placeholder="e.g. 036000291452"
+                  value={upc}
+                  onChange={(e) => setUpc(e.target.value)}
+                  className="text-xs font-mono"
+                />
+              </div>
             </div>
+
+            {/* Flyer scope: products are saved per flyer */}
+            {!flyerId && (
+              <div className="space-y-1">
+                <Label htmlFor="prod-flyer" className="text-xs font-semibold">
+                  Flyer <span className="text-destructive">*</span>
+                </Label>
+                <Select value={selectedFlyerId} onValueChange={setSelectedFlyerId}>
+                  <SelectTrigger id="prod-flyer" className="text-xs">
+                    <SelectValue placeholder="Select the flyer this product belongs to" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {flyers.map((f) => (
+                      <SelectItem key={f.id} value={f.id} className="text-xs">
+                        {f.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Options / variants */}
+            <ProductOptionsEditor value={options} onChange={setOptions} />
 
             {/* Pricing Section */}
             <div className="rounded-lg border p-3 bg-muted/10 space-y-2">

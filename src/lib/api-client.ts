@@ -17,6 +17,8 @@ export interface StoreLocation {
   longitude?: number;
   phone?: string;
   logoUrl?: string;
+  privacyPolicyUrl?: string | null;
+  termsUrl?: string | null;
   merchant?: Merchant;
   flyers?: ApiFlyer[];
 }
@@ -39,6 +41,8 @@ export interface Merchant {
   bannerUrl?: string | null;
   categoryId?: string | null;
   website?: string | null;
+  privacyPolicyUrl?: string | null;
+  termsUrl?: string | null;
   category?: Category | null;
   locations?: StoreLocation[];
   flyers?: ApiFlyer[];
@@ -57,9 +61,17 @@ export interface ApiProduct {
   unit: string;
   category: string;
   sku?: string | null;
+  upc?: string | null;
+  options?: ProductOption[];
+  flyerId?: string | null;
   imageUrl: string;
   merchant?: Merchant;
   createdAt?: string;
+}
+
+export interface ProductOption {
+  label: string;
+  value: string;
 }
 
 export const PRODUCT_PRESET_IMAGES = [
@@ -187,9 +199,10 @@ export async function saveHotspotsBatch(
   return res.json();
 }
 
-export async function fetchProducts(query?: string): Promise<ApiProduct[]> {
+export async function fetchProducts(query?: string, flyerId?: string): Promise<ApiProduct[]> {
   const url = new URL(`${API_BASE}/api/v1/products`);
   if (query) url.searchParams.set("q", query);
+  if (flyerId) url.searchParams.set("flyerId", flyerId);
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error("Failed to fetch products");
   return res.json();

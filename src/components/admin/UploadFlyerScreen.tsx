@@ -52,6 +52,7 @@ import {
   RECOMMENDED_FLYER_WIDTH,
   RECOMMENDED_FLYER_HEIGHT,
   RECOMMENDED_FLYER_ASPECT_RATIO,
+  isLongScrollFlyer,
   loadImageElement,
   renderFlyerToCanvas,
   canvasToFile,
@@ -96,6 +97,10 @@ export function UploadFlyerScreen({
   const [isSheetDialogOpen, setIsSheetDialogOpen] = useState(false);
   const [autoDetectOnUpload, setAutoDetectOnUpload] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Long scrolling flyers are accepted as-is (no crop / letterbox needed)
+  const isLongFlyer = imgDimensions
+    ? isLongScrollFlyer(imgDimensions.width, imgDimensions.height)
+    : false;
 
   const handleApplyPreset = (days: number | "month" | "clear") => {
     if (days === "clear") {
@@ -131,7 +136,12 @@ export function UploadFlyerScreen({
       const evaluation = evaluateFlyerSizing(dimensions.width, dimensions.height);
       setSizingEval(evaluation);
 
-      if (!evaluation.isMatch) {
+      if (isLongScrollFlyer(dimensions.width, dimensions.height)) {
+        toast.success(
+          `Long scrolling flyer detected (${(dimensions.height / dimensions.width).toFixed(2)}:1). It will be published as-is and scrolls in the app.`,
+          { duration: 5000 },
+        );
+      } else if (!evaluation.isMatch) {
         toast.warning(
           `Image aspect ratio (${evaluation.aspectRatio.toFixed(2)}) deviates from mobile 9:16 standard. Use Crop/Resize to optimize.`,
           { duration: 5000 },
@@ -602,14 +612,42 @@ export function UploadFlyerScreen({
                 {selectedFile ? selectedFile.name : "Click to select or drop flyer image"}
               </p>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Supported formats: JPG, PNG, WebP (up to 15MB) · Recommended: 1080 × 1920 px (9:16)
+                Supported formats: JPG, PNG, WebP (up to 25MB) · Recommended: 1080 × 1920 px (9:16) · Long scrolling flyers are accepted as-is
               </p>
             </div>
 
             {/* Sizing Status Banner */}
             {previewUrl && sizingEval && (
               <div className="space-y-3">
-                {sizingEval.isMatch ? (
+                {isLongFlyer ? (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border border-sky-300 bg-sky-50/80 dark:border-sky-800 dark:bg-sky-950/40 p-3.5 text-xs text-sky-900 dark:text-sky-200">
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">Long Scrolling Flyer</span>
+                          <Badge variant="outline" className="text-[9px] border-sky-400 text-sky-700 dark:text-sky-300 font-mono">
+                            {(imgDimensions!.height / imgDimensions!.width).toFixed(2)}:1
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-sky-800 dark:text-sky-300 mt-0.5 max-w-xl">
+                          This flyer will be published at its original size and shoppers scroll through it
+                          in the app. No cropping is needed. Deals are detected across the full length.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCropDialogOpen(true)}
+                      className="h-7 text-xs gap-1.5 shrink-0 bg-background"
+                    >
+                      <Crop className="h-3 w-3 text-primary" />
+                      <span>Optional: Crop</span>
+                    </Button>
+                  </div>
+                ) : sizingEval.isMatch ? (
                   <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 p-3.5 text-xs text-emerald-900 dark:text-emerald-200">
                     <div className="flex items-start gap-2.5">
                       <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />

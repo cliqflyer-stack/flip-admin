@@ -80,6 +80,8 @@ function AdminContent() {
   const [flyersList, setFlyersList] = useState<ApiFlyer[]>([]);
   const [selectedFlyerId, setSelectedFlyerId] = useState<string>(urlFlyerId || "");
   const [catalogProducts, setCatalogProducts] = useState<ApiProduct[]>([]);
+  // Products are saved per flyer: the studio only works with the selected flyer's products
+  const [flyerProducts, setFlyerProducts] = useState<ApiProduct[]>([]);
   const [merchantsList, setMerchantsList] = useState<Merchant[]>([]);
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [storeLocationsList, setStoreLocationsList] = useState<StoreLocation[]>([]);
@@ -216,6 +218,25 @@ function AdminContent() {
     }
   }, [isAuthenticated]);
 
+  // Load the selected flyer's products whenever the studio's flyer changes
+  useEffect(() => {
+    if (!selectedFlyerId) {
+      setFlyerProducts([]);
+      return;
+    }
+    let cancelled = false;
+    fetchProducts(undefined, selectedFlyerId)
+      .then((list) => {
+        if (!cancelled) setFlyerProducts(list);
+      })
+      .catch(() => {
+        if (!cancelled) setFlyerProducts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFlyerId]);
+
   // Sync selected flyer if URL search param changes
   useEffect(() => {
     if (urlFlyerId && urlFlyerId !== selectedFlyerId && flyersList.length > 0) {
@@ -304,7 +325,7 @@ function AdminContent() {
   // Hotspot actions
   const handleCreateHotspot = (rect: HotspotRect, productId?: string) => {
     const newId = `hs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-    const defaultProduct = catalogProducts[0];
+    const defaultProduct = flyerProducts[0];
     const newHotspot: Hotspot = {
       id: newId,
       productId: productId || defaultProduct?.id || "prod_pepsi",
@@ -490,10 +511,22 @@ function AdminContent() {
               flyers={flyersList}
               selectedFlyerId={selectedFlyerId}
               onSelectFlyer={handleSelectFlyer}
-              catalogProducts={catalogProducts}
+              catalogProducts={flyerProducts}
               merchants={merchantsList}
               storeLocations={storeLocationsList}
-              onProductCreated={(p) => setCatalogProducts((prev) => [p, ...prev])}
+              onProductCreated={(p) => {
+                setFlyerProducts((prev) => [p, ...prev]);
+                setCatalogProducts((prev) => [p, ...prev]);
+              }}
+              onProductUpdated={(p) => {
+                setFlyerProducts((prev) => prev.map((x) => (x.id === p.id ? p : x)));
+                setCatalogProducts((prev) => prev.map((x) => (x.id === p.id ? p : x)));
+              }}
+              onProductDeleted={(id) => {
+                setFlyerProducts((prev) => prev.filter((x) => x.id !== id));
+                setCatalogProducts((prev) => prev.filter((x) => x.id !== id));
+                setHotspots((prev) => prev.filter((h) => h.productId !== id));
+              }}
               hotspots={hotspots}
               selectedHotspotId={selectedHotspotId}
               onSelectHotspot={setSelectedHotspotId}
@@ -645,8 +678,12 @@ function AdminContent() {
           {currentView === "add-product" && (
             <ProductFormScreen
               merchants={merchantsList}
+              flyers={flyersList}
               onSave={(created) => {
                 setCatalogProducts((prev) => [created, ...prev]);
+                if (created.flyerId && created.flyerId === selectedFlyerId) {
+                  setFlyerProducts((prev) => [created, ...prev]);
+                }
                 handleSelectView("products");
               }}
               onCancel={() => handleSelectView("products")}
@@ -657,8 +694,10 @@ function AdminContent() {
             <ProductFormScreen
               product={productToEdit}
               merchants={merchantsList}
+              flyers={flyersList}
               onSave={(updated) => {
                 setCatalogProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                setFlyerProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
                 handleSelectView("products");
               }}
               onCancel={() => handleSelectView("products")}

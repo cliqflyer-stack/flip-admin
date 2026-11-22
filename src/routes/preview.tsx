@@ -84,6 +84,12 @@ function DynamicPreviewPage() {
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(searchParams.hotspotId || null);
+  // Every hotspot tapped on this flyer keeps its ring until empty space is tapped
+  const [markedHotspotIds, setMarkedHotspotIds] = useState<string[]>(
+    searchParams.hotspotId ? [searchParams.hotspotId] : []
+  );
+  // Whether the product bottom sheet is open (closing it does not clear the marks)
+  const [sheetOpen, setSheetOpen] = useState<boolean>(!!searchParams.hotspotId);
   const [loading, setLoading] = useState(true);
   const [showExpiredAdmin, setShowExpiredAdmin] = useState(false);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -130,6 +136,8 @@ function DynamicPreviewPage() {
     setSelectedFlyerId(flyer.id);
     setImageUrl(resolveImageUrl(flyer.flyerImageUrl));
     setSelectedHotspotId(targetHotspotId || null);
+    setMarkedHotspotIds(targetHotspotId ? [targetHotspotId] : []);
+    setSheetOpen(!!targetHotspotId);
 
     if (flyer.hotspots && flyer.hotspots.length > 0) {
       setHotspots(
@@ -150,6 +158,36 @@ function DynamicPreviewPage() {
     } else {
       setHotspots([]);
     }
+  };
+
+  // Tap on an unmarked hotspot: mark it, make it the active one, and open the sheet.
+  // Tap on an already-marked hotspot: remove its ring (and close the sheet if it is the one shown).
+  // Tap on empty space (null): close the sheet only; rings stay until removed.
+  const handleHotspotTap = (hotspotId: string | null) => {
+    if (!hotspotId) {
+      setSheetOpen(false);
+      return;
+    }
+    if (markedHotspotIds.includes(hotspotId)) {
+      setMarkedHotspotIds((prev) => prev.filter((id) => id !== hotspotId));
+      if (selectedHotspotId === hotspotId) setSheetOpen(false);
+      return;
+    }
+    setSelectedHotspotId(hotspotId);
+    setMarkedHotspotIds((prev) => [...prev, hotspotId]);
+    setSheetOpen(true);
+  };
+
+  const clearMarks = () => {
+    setMarkedHotspotIds([]);
+    setSelectedHotspotId(null);
+    setSheetOpen(false);
+  };
+
+  const resetHotspotState = () => {
+    setSelectedHotspotId(null);
+    setMarkedHotspotIds([]);
+    setSheetOpen(false);
   };
 
   const handleSelectSearchResult = (deal: any) => {
@@ -196,17 +234,20 @@ function DynamicPreviewPage() {
 
   // Header navigation back
   const handleResetToCatalog = () => {
+    resetHotspotState();
     setSelectedFlyerId(null);
     setSelectedStoreId(null);
     setSelectedBrandId(null);
   };
 
   const handleBackToStores = () => {
+    resetHotspotState();
     setSelectedFlyerId(null);
     setSelectedStoreId(null);
   };
 
   const handleBackToFlyers = () => {
+    resetHotspotState();
     setSelectedFlyerId(null);
   };
 
@@ -766,8 +807,9 @@ function DynamicPreviewPage() {
                         imageWidth={imgSize.width}
                         imageHeight={imgSize.height}
                         hotspots={hotspots}
-                        selectedHotspotId={selectedHotspotId}
-                        onSelectHotspot={setSelectedHotspotId}
+                        selectedHotspotId={selectedHotspotId} markedHotspotIds={markedHotspotIds} isSheetOpen={sheetOpen}
+                        onSelectHotspot={handleHotspotTap}
+                        onClearMarks={clearMarks}
                       />
                     </Suspense>
                   </ClientOnly>
@@ -790,8 +832,9 @@ function DynamicPreviewPage() {
                         imageWidth={imgSize.width}
                         imageHeight={imgSize.height}
                         hotspots={hotspots}
-                        selectedHotspotId={selectedHotspotId}
-                        onSelectHotspot={setSelectedHotspotId}
+                        selectedHotspotId={selectedHotspotId} markedHotspotIds={markedHotspotIds} isSheetOpen={sheetOpen}
+                        onSelectHotspot={handleHotspotTap}
+                        onClearMarks={clearMarks}
                       />
                     </Suspense>
                   </ClientOnly>
@@ -813,8 +856,9 @@ function DynamicPreviewPage() {
                       imageWidth={imgSize.width}
                       imageHeight={imgSize.height}
                       hotspots={hotspots}
-                      selectedHotspotId={selectedHotspotId}
-                      onSelectHotspot={setSelectedHotspotId}
+                      selectedHotspotId={selectedHotspotId} markedHotspotIds={markedHotspotIds} isSheetOpen={sheetOpen}
+                      onSelectHotspot={handleHotspotTap}
+                        onClearMarks={clearMarks}
                     />
                   </Suspense>
                 </ClientOnly>
@@ -827,14 +871,11 @@ function DynamicPreviewPage() {
       {/* Product Detail Bottom Sheet */}
       <ProductSheet
         product={selectedProduct}
-        open={!!selectedProduct}
+        open={sheetOpen && !!selectedProduct}
         onOpenChange={(open) => {
-          if (!open) setSelectedHotspotId(null);
+          if (!open) setSheetOpen(false);
         }}
-        onClose={() => setSelectedHotspotId(null)}
-        onAddToList={(prod) => {
-          setSelectedHotspotId(null);
-        }}
+        onClose={() => setSheetOpen(false)}
       />
 
       {/* Global Deal Search Dialog with Cropped Flyer Banner Snippets */}

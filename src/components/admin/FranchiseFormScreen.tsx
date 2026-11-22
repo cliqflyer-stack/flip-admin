@@ -101,6 +101,8 @@ export function FranchiseFormScreen({
   const [isInitialManual, setIsInitialManual] = useState(isEdit);
   const [categoryId, setCategoryId] = useState(franchise?.categoryId || "groceries");
   const [website, setWebsite] = useState(franchise?.website || "");
+  const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState(franchise?.privacyPolicyUrl || "");
+  const [termsUrl, setTermsUrl] = useState(franchise?.termsUrl || "");
   const [logoBg, setLogoBg] = useState(franchise?.logoBg || "#075E50");
   const [logoColor, setLogoColor] = useState(franchise?.logoColor || "#FFFFFF");
   const [logoUrl, setLogoUrl] = useState(franchise?.logoUrl || "");
@@ -197,6 +199,8 @@ export function FranchiseFormScreen({
         initial: finalInitial,
         categoryId: categoryId || null,
         website: website.trim() || null,
+        privacyPolicyUrl: privacyPolicyUrl.trim() || null,
+        termsUrl: termsUrl.trim() || null,
         logoBg: logoBg || "#075E50",
         logoColor: logoColor || "#FFFFFF",
         logoUrl: logoUrl.trim() || null,
@@ -379,6 +383,33 @@ export function FranchiseFormScreen({
                     className="h-9 pl-8 text-xs"
                   />
                 </div>
+              </div>
+
+              {/* Legal: privacy policy & terms (shown in the customer app product sheet) */}
+              <div className="space-y-1.5">
+                <Label htmlFor="franchise-privacy" className="text-xs font-medium">
+                  Privacy Policy URL
+                </Label>
+                <Input
+                  id="franchise-privacy"
+                  placeholder="https://..."
+                  value={privacyPolicyUrl}
+                  onChange={(e) => setPrivacyPolicyUrl(e.target.value)}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="franchise-terms" className="text-xs font-medium">
+                  Terms &amp; Conditions URL
+                </Label>
+                <Input
+                  id="franchise-terms"
+                  placeholder="https://..."
+                  value={termsUrl}
+                  onChange={(e) => setTermsUrl(e.target.value)}
+                  className="h-9 text-xs"
+                />
               </div>
             </div>
           </CardContent>
