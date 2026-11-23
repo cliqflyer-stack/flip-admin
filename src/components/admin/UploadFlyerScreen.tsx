@@ -1,14 +1,13 @@
 import React, { useRef, useState } from "react";
 import {
-  ArrowLeft,
+  Building2,
   CalendarClock,
   Calendar,
   CheckCircle2,
-  Clock,
+  FileText,
   ImagePlus,
   Info,
   Loader2,
-  MapPin,
   Sparkles,
   Upload,
   AlertTriangle,
@@ -20,7 +19,6 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +42,16 @@ import {
   type Merchant,
   type StoreLocation,
 } from "@/lib/api-client";
+import {
+  AdminFormBody,
+  AdminFormField,
+  AdminFormFooter,
+  AdminFormHeader,
+  AdminFormPage,
+  AdminFormSection,
+  adminInputClass,
+  adminSelectTriggerClass,
+} from "./AdminFormLayout";
 import { FlyerCropDialog } from "./FlyerCropDialog";
 import { FranchiseDialog } from "./FranchiseDialog";
 import { GenerateFlyerFromSheetDialog } from "./GenerateFlyerFromSheetDialog";
@@ -253,7 +261,9 @@ export function UploadFlyerScreen({
             applyImmediately: true,
           });
           if (autoRes.count > 0) {
-            toast.success(`✨ Auto-detected and mapped ${autoRes.count} product deals with cropped thumbnails!`);
+            toast.success(
+              `✨ Auto-detected and mapped ${autoRes.count} product deals with cropped thumbnails!`,
+            );
           }
         } catch (e: any) {
           console.warn("Auto-detection post-upload failed:", e);
@@ -271,565 +281,562 @@ export function UploadFlyerScreen({
   const filteredLocations = storeLocations.filter((l) => l.merchantId === merchantId);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Top Header */}
-      <div className="flex items-center justify-between border-b pb-4">
-        <div className="flex items-center gap-3">
+    <AdminFormPage>
+      <AdminFormHeader
+        title="Upload Digital Circular"
+        description="Publish a new flyer, set its validity window, format it to mobile dimensions and map interactive hotspots."
+        onBack={onCancel}
+        badge={
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] text-primary">
+            <Smartphone className="h-3 w-3" />
+            9:16 Mobile Standard
+          </Badge>
+        }
+        actions={
           <Button
             type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onCancel}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsSheetDialogOpen(true)}
+            className="h-9 gap-1.5 border-emerald-500/40 bg-emerald-500/5 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+            Generate from Spreadsheet
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                Upload Digital Circular
-              </h1>
-              <Badge variant="outline" className="text-[10px] font-mono text-primary gap-1">
-                <Smartphone className="h-3 w-3" />
-                9:16 Mobile Standard
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Publish a new flyer image, set validity dates, format to mobile dimensions, and map
-              interactive hotspots.
-            </p>
-          </div>
-        </div>
+        }
+      />
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setIsSheetDialogOpen(true)}
-          className="h-8 gap-1.5 text-xs font-semibold border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10"
-        >
-          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Generate from Spreadsheet (.xlsx / .csv)</span>
-        </Button>
-      </div>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
+        <AdminFormBody
+          aside={
+            <>
+              {/* Franchise and Branch Assignment */}
+              <AdminFormSection
+                step={1}
+                icon={Building2}
+                title="Franchise & Location"
+                description="Assign this circular to a brand and an optional specific branch."
+              >
+                <AdminFormField
+                  label="Brand / Franchise"
+                  htmlFor="merchant-select"
+                  required
+                  hint={
+                    onFranchiseCreated ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddFranchiseOpen(true)}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        + New Franchise
+                      </button>
+                    ) : undefined
+                  }
+                >
+                  <Select
+                    value={merchantId}
+                    onValueChange={(val) => {
+                      setMerchantId(val);
+                      setStoreLocationId("all");
+                    }}
+                  >
+                    <SelectTrigger id="merchant-select" className={adminSelectTriggerClass}>
+                      <SelectValue placeholder="Select a brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {merchants.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="text-sm">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold"
+                              style={{ backgroundColor: m.logoBg, color: m.logoColor }}
+                            >
+                              {m.initial}
+                            </span>
+                            <span>{m.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </AdminFormField>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Franchise and Branch Assignment */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">
-              1. Franchise Brand &amp; Location
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Assign this digital circular to a franchise brand and an optional specific branch.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="merchant-select" className="text-xs font-medium">
-                    Brand / Franchise <span className="text-destructive">*</span>
-                  </Label>
-                  {onFranchiseCreated && (
+                <AdminFormField label="Store Branch" htmlFor="location-select">
+                  <Select value={storeLocationId} onValueChange={setStoreLocationId}>
+                    <SelectTrigger id="location-select" className={adminSelectTriggerClass}>
+                      <SelectValue placeholder="Chain-wide (All Stores)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-sm font-semibold">
+                        Chain-wide (All Branches)
+                      </SelectItem>
+                      {filteredLocations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id} className="text-sm">
+                          {loc.name} ({loc.city})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </AdminFormField>
+              </AdminFormSection>
+
+              {/* Flyer details */}
+              <AdminFormSection
+                step={2}
+                icon={FileText}
+                title="Flyer Details"
+                description="Shown to shoppers in the app and in search results."
+              >
+                <AdminFormField label="Flyer Title" htmlFor="flyer-title" required>
+                  <Input
+                    id="flyer-title"
+                    placeholder="e.g. Weekly Grocery Deals & Specials"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    className={adminInputClass}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="Subtitle / Offer Text" htmlFor="flyer-subtitle">
+                  <Input
+                    id="flyer-subtitle"
+                    placeholder="e.g. Prices valid Thursday through Wednesday"
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                    className={adminInputClass}
+                  />
+                </AdminFormField>
+
+                <AdminFormField
+                  label="Highlight Pill"
+                  htmlFor="flyer-badge"
+                  description="Short label shown on the flyer card, e.g. NEW, 50% OFF."
+                >
+                  <Input
+                    id="flyer-badge"
+                    placeholder="NEW"
+                    value={badgeText}
+                    onChange={(e) => setBadgeText(e.target.value)}
+                    className={adminInputClass}
+                  />
+                </AdminFormField>
+              </AdminFormSection>
+
+              {/* Validity window */}
+              <AdminFormSection
+                step={3}
+                icon={CalendarClock}
+                title="Validity Window"
+                description="Once expired, the flyer is hidden from the customer app and search."
+                action={
+                  <Badge variant="outline" className="font-mono text-[10px] text-primary">
+                    Automatic Hiding
+                  </Badge>
+                }
+              >
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium text-foreground">Quick Presets</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyPreset(7)}
+                      className="h-8 px-3 text-xs font-medium"
+                    >
+                      +7 Days
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyPreset(14)}
+                      className="h-8 px-3 text-xs font-medium"
+                    >
+                      +14 Days
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyPreset(30)}
+                      className="h-8 px-3 text-xs font-medium"
+                    >
+                      +30 Days
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyPreset("month")}
+                      className="h-8 px-3 text-xs font-medium"
+                    >
+                      End of Month
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setIsAddFranchiseOpen(true)}
-                      className="h-5 px-1.5 text-[11px] font-medium text-primary hover:text-primary hover:underline"
+                      onClick={() => handleApplyPreset("clear")}
+                      className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      + New Franchise
-                    </Button>
-                  )}
-                </div>
-                <Select
-                  value={merchantId}
-                  onValueChange={(val) => {
-                    setMerchantId(val);
-                    setStoreLocationId("all");
-                  }}
-                >
-                  <SelectTrigger id="merchant-select" className="h-8 text-xs">
-                    <SelectValue placeholder="Select a brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {merchants.map((m) => (
-                      <SelectItem key={m.id} value={m.id} className="text-xs">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="inline-flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold"
-                            style={{ backgroundColor: m.logoBg, color: m.logoColor }}
-                          >
-                            {m.initial}
-                          </span>
-                          <span>{m.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="location-select" className="text-xs font-medium">
-                  Store Branch Assignment
-                </Label>
-                <Select value={storeLocationId} onValueChange={setStoreLocationId}>
-                  <SelectTrigger id="location-select" className="h-8 text-xs">
-                    <SelectValue placeholder="Chain-wide (All Stores)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" className="text-xs font-semibold">
-                      Chain-wide (All Branches)
-                    </SelectItem>
-                    {filteredLocations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id} className="text-xs">
-                        {loc.name} ({loc.city})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="flyer-title" className="text-xs font-medium">
-                Flyer Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="flyer-title"
-                placeholder="e.g. Weekly Grocery Deals & Specials"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                className="h-8 text-xs font-medium"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2 space-y-1.5">
-                <Label htmlFor="flyer-subtitle" className="text-xs font-medium">
-                  Subtitle / Valid Offer Text
-                </Label>
-                <Input
-                  id="flyer-subtitle"
-                  placeholder="e.g. Prices valid Thursday through Wednesday"
-                  value={subtitle}
-                  onChange={(e) => setSubtitle(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="flyer-badge" className="text-xs font-medium">
-                  Highlight Pill
-                </Label>
-                <Input
-                  id="flyer-badge"
-                  placeholder="e.g. NEW, 50% OFF, WEEKLY"
-                  value={badgeText}
-                  onChange={(e) => setBadgeText(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Validity Period & Automatic Expiry Configuration Card */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                <CalendarClock className="h-4 w-4 text-primary" />
-                2. Validity Window &amp; Expiration Date
-              </CardTitle>
-              <Badge variant="outline" className="text-[10px] font-mono text-primary">
-                Automatic Hiding
-              </Badge>
-            </div>
-            <CardDescription className="text-xs">
-              Configure when this circular goes live and when it expires. Once expired, the flyer is
-              hidden from customer apps and search results.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-xs">
-            {/* Quick Presets */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Quick Expiry Duration Presets
-              </Label>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleApplyPreset(7)}
-                  className="h-7 text-xs px-2.5 font-medium"
-                >
-                  +7 Days (Weekly)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleApplyPreset(14)}
-                  className="h-7 text-xs px-2.5 font-medium"
-                >
-                  +14 Days (Bi-weekly)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleApplyPreset(30)}
-                  className="h-7 text-xs px-2.5 font-medium"
-                >
-                  +30 Days (Monthly)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleApplyPreset("month")}
-                  className="h-7 text-xs px-2.5 font-medium"
-                >
-                  End of Current Month
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleApplyPreset("clear")}
-                  className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
-                >
-                  Clear (No Expiry)
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-              <div className="space-y-1.5">
-                <Label htmlFor="valid-from" className="text-xs font-medium flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  Valid From Date{" "}
-                  <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
-                <Input
-                  id="valid-from"
-                  type="date"
-                  value={validFrom}
-                  onChange={(e) => setValidFrom(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="valid-to" className="text-xs font-medium flex items-center gap-1">
-                  <CalendarClock className="h-3.5 w-3.5 text-primary" />
-                  Expiry Date (Valid To) <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="valid-to"
-                  type="date"
-                  value={validTo}
-                  onChange={(e) => setValidTo(e.target.value)}
-                  className="h-8 text-xs font-medium"
-                />
-              </div>
-            </div>
-
-            {/* Live Visibility Explanatory Banner */}
-            {validTo ? (
-              <div className="flex items-start gap-2.5 rounded-lg border border-emerald-300 bg-emerald-50 dark:border-emerald-700/60 dark:bg-emerald-950/40 p-3 text-xs text-emerald-800 dark:text-emerald-300">
-                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600" />
-                <div className="space-y-0.5">
-                  <p className="font-semibold">Automatic Expiry Configured</p>
-                  <p className="text-[11px] leading-relaxed">
-                    This circular will be published immediately and will automatically expire on{" "}
-                    <strong>
-                      {new Date(toEndOfDayIso(validTo)).toLocaleDateString(undefined, {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </strong>{" "}
-                    at 11:59 PM. After this date, the flyer will no longer be visible to shoppers in
-                    the mobile app.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <p className="font-semibold text-foreground">No Expiry Date</p>
-                  <p className="text-[11px]">
-                    This flyer will remain published and visible indefinitely until an expiration
-                    date is configured or it is manually archived.
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Image File Dropzone & Mobile Sizing Card */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                <Smartphone className="h-4 w-4 text-primary" />
-                3. Circular Page Image &amp; Mobile Format
-              </CardTitle>
-              <Badge variant="outline" className="text-[10px] font-mono text-primary">
-                Standard: 9:16 (1080 × 1920)
-              </Badge>
-            </div>
-            <CardDescription className="text-xs">
-              Upload crisp JPG, PNG, or WebP circular pages. For mobile app shoppers, standard 9:16
-              vertical resolution ensures optimal display on smartphones without horizontal
-              distortion.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-8 cursor-pointer hover:bg-muted/30 transition-colors text-center"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isSubmitting}
-              />
-              <Upload className="h-8 w-8 text-primary mb-3" />
-              <p className="text-xs font-semibold text-foreground">
-                {selectedFile ? selectedFile.name : "Click to select or drop flyer image"}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Supported formats: JPG, PNG, WebP (up to 25MB) · Recommended: 1080 × 1920 px (9:16) · Long scrolling flyers are accepted as-is
-              </p>
-            </div>
-
-            {/* Sizing Status Banner */}
-            {previewUrl && sizingEval && (
-              <div className="space-y-3">
-                {isLongFlyer ? (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border border-sky-300 bg-sky-50/80 dark:border-sky-800 dark:bg-sky-950/40 p-3.5 text-xs text-sky-900 dark:text-sky-200">
-                    <div className="flex items-start gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">Long Scrolling Flyer</span>
-                          <Badge variant="outline" className="text-[9px] border-sky-400 text-sky-700 dark:text-sky-300 font-mono">
-                            {(imgDimensions!.height / imgDimensions!.width).toFixed(2)}:1
-                          </Badge>
-                        </div>
-                        <p className="text-[11px] text-sky-800 dark:text-sky-300 mt-0.5 max-w-xl">
-                          This flyer will be published at its original size and shoppers scroll through it
-                          in the app. No cropping is needed. Deals are detected across the full length.
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCropDialogOpen(true)}
-                      className="h-7 text-xs gap-1.5 shrink-0 bg-background"
-                    >
-                      <Crop className="h-3 w-3 text-primary" />
-                      <span>Optional: Crop</span>
+                      No Expiry
                     </Button>
                   </div>
-                ) : sizingEval.isMatch ? (
-                  <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 p-3.5 text-xs text-emerald-900 dark:text-emerald-200">
-                    <div className="flex items-start gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">
-                            Optimal 9:16 Mobile Flyer Format
-                          </span>
-                          <Badge variant="default" className="text-[9px] bg-emerald-600 text-white">
-                            Ready for Mobile
-                          </Badge>
-                        </div>
-                        <p className="text-[11px] text-emerald-800 dark:text-emerald-300 mt-0.5">
-                          Detected {imgDimensions?.width} × {imgDimensions?.height} px (ratio:{" "}
-                          {sizingEval.aspectRatio.toFixed(2)}). Fits perfectly on smartphone screens
-                          with 1:1 hotspot mapping accuracy.
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCropDialogOpen(true)}
-                      className="h-7 text-xs gap-1.5 shrink-0 bg-background"
-                    >
-                      <Crop className="h-3 w-3 text-primary" />
-                      <span>Adjust Framing</span>
-                    </Button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <AdminFormField
+                    label={
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        Valid From
+                      </span>
+                    }
+                    htmlFor="valid-from"
+                    hint="Optional"
+                  >
+                    <Input
+                      id="valid-from"
+                      type="date"
+                      value={validFrom}
+                      onChange={(e) => setValidFrom(e.target.value)}
+                      className={adminInputClass}
+                    />
+                  </AdminFormField>
+
+                  <AdminFormField
+                    label={
+                      <span className="flex items-center gap-1.5">
+                        <CalendarClock className="h-3.5 w-3.5 text-primary" />
+                        Expiry Date
+                      </span>
+                    }
+                    htmlFor="valid-to"
+                    required
+                  >
+                    <Input
+                      id="valid-to"
+                      type="date"
+                      value={validTo}
+                      onChange={(e) => setValidTo(e.target.value)}
+                      className={adminInputClass}
+                    />
+                  </AdminFormField>
+                </div>
+
+                {validTo ? (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <p className="leading-relaxed">
+                      Publishes immediately and expires on{" "}
+                      <strong>
+                        {new Date(toEndOfDayIso(validTo)).toLocaleDateString(undefined, {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </strong>{" "}
+                      at 11:59 PM.
+                    </p>
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200">
-                    <div className="flex items-start gap-2.5">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">
-                            Mobile Sizing Mismatch Detected
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] border-amber-400 text-amber-700 dark:text-amber-300 font-mono"
-                          >
-                            {sizingEval.label}
-                          </Badge>
+                  <div className="flex items-start gap-2.5 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p className="leading-relaxed">
+                      No expiry date. This flyer stays visible until you set one or archive it.
+                    </p>
+                  </div>
+                )}
+              </AdminFormSection>
+            </>
+          }
+        >
+          {/* Circular page image: the main, full-height work area */}
+          <AdminFormSection
+            icon={ImagePlus}
+            title="Circular Page Image"
+            description="Upload a crisp JPG, PNG or WebP. Standard 9:16 vertical resolution displays best on smartphones."
+            action={
+              <Badge variant="outline" className="font-mono text-[10px] text-primary">
+                Standard: 9:16 (1080 × 1920)
+              </Badge>
+            }
+            className="flex flex-1 flex-col"
+            contentClassName="flex flex-1 flex-col"
+          >
+            {!previewUrl ? (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+                }}
+                className="flex min-h-[560px] flex-1 cursor-pointer flex-col items-center justify-center gap-5 rounded-xl border-2 border-dashed border-border bg-muted/20 p-10 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Upload className="h-7 w-7" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base font-semibold text-foreground">
+                    Click to select a flyer image
+                  </p>
+                  <p className="text-sm text-muted-foreground">JPG, PNG or WebP · up to 25 MB</p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="secondary" className="font-normal">
+                    Recommended 1080 × 1920 px
+                  </Badge>
+                  <Badge variant="secondary" className="font-normal">
+                    Long scrolling flyers accepted
+                  </Badge>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-2 h-9 gap-1.5 px-4 text-xs font-semibold"
+                >
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  Choose File
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-1 flex-col gap-4">
+                {/* Sizing Status Banner */}
+                {sizingEval && (
+                  <div>
+                    {isLongFlyer ? (
+                      <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-sky-300 bg-sky-50/80 p-3.5 text-xs text-sky-900 sm:flex-row sm:items-center dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+                        <div className="flex items-start gap-2.5">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">
+                                Long Scrolling Flyer
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="border-sky-400 font-mono text-[9px] text-sky-700 dark:text-sky-300"
+                              >
+                                {(imgDimensions!.height / imgDimensions!.width).toFixed(2)}:1
+                              </Badge>
+                            </div>
+                            <p className="mt-0.5 max-w-xl text-[11px] text-sky-800 dark:text-sky-300">
+                              Published at its original size; shoppers scroll through it in the app.
+                              No cropping needed.
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5 max-w-xl">
-                          Current size: {imgDimensions?.width} × {imgDimensions?.height} px (Aspect
-                          ratio {sizingEval.aspectRatio.toFixed(2)}). Mobile shopping apps standard
-                          is <strong>9:16 (1080 × 1920 px)</strong>. Format now to ensure high
-                          legibility and avoid side black bars on phones.
-                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCropDialogOpen(true)}
+                          className="h-8 shrink-0 gap-1.5 bg-background text-xs"
+                        >
+                          <Crop className="h-3 w-3 text-primary" />
+                          <span>Optional: Crop</span>
+                        </Button>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleQuickAutoFit}
-                        disabled={isAutoFitting}
-                        className="h-7 text-xs gap-1 bg-background"
-                        title="Fits entire flyer inside 1080 × 1920 canvas without cutting any content"
-                      >
-                        {isAutoFitting ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Maximize2 className="h-3 w-3 text-emerald-600" />
-                        )}
-                        <span>Quick Fit (No Crop)</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => setCropDialogOpen(true)}
-                        className="h-7 text-xs gap-1 bg-primary text-primary-foreground font-semibold shadow-xs"
-                      >
-                        <Crop className="h-3 w-3" />
-                        <span>Crop / Resize (9:16)</span>
-                      </Button>
-                    </div>
+                    ) : sizingEval.isMatch ? (
+                      <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-3.5 text-xs text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                        <div className="flex items-start gap-2.5">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">
+                                Optimal 9:16 Mobile Flyer Format
+                              </span>
+                              <Badge
+                                variant="default"
+                                className="bg-emerald-600 text-[9px] text-white"
+                              >
+                                Ready for Mobile
+                              </Badge>
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                              Detected {imgDimensions?.width} × {imgDimensions?.height} px (ratio{" "}
+                              {sizingEval.aspectRatio.toFixed(2)}).
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCropDialogOpen(true)}
+                          className="h-8 shrink-0 gap-1.5 bg-background text-xs"
+                        >
+                          <Crop className="h-3 w-3 text-primary" />
+                          <span>Adjust Framing</span>
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50/80 p-3.5 text-xs text-amber-900 sm:flex-row sm:items-center dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                        <div className="flex items-start gap-2.5">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">
+                                Mobile Sizing Mismatch
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="border-amber-400 font-mono text-[9px] text-amber-700 dark:text-amber-300"
+                              >
+                                {sizingEval.label}
+                              </Badge>
+                            </div>
+                            <p className="mt-0.5 max-w-xl text-[11px] text-amber-800 dark:text-amber-300">
+                              Current size {imgDimensions?.width} × {imgDimensions?.height} px. The
+                              standard is <strong>9:16 (1080 × 1920 px)</strong>; format it to avoid
+                              black bars on phones.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleQuickAutoFit}
+                            disabled={isAutoFitting}
+                            className="h-8 gap-1 bg-background text-xs"
+                            title="Fits entire flyer inside 1080 × 1920 canvas without cutting any content"
+                          >
+                            {isAutoFitting ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Maximize2 className="h-3 w-3 text-emerald-600" />
+                            )}
+                            <span>Quick Fit (No Crop)</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setCropDialogOpen(true)}
+                            className="h-8 gap-1 text-xs font-semibold shadow-xs"
+                          >
+                            <Crop className="h-3 w-3" />
+                            <span>Crop / Resize</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Image Details Card */}
-                <div className="rounded-lg border p-3 bg-muted/20 flex flex-col sm:flex-row items-center gap-4">
-                  <div className="relative group shrink-0">
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="h-32 w-auto object-contain rounded border bg-background"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCropDialogOpen(true)}
-                      className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-[10px] rounded cursor-pointer"
-                    >
-                      <Crop className="h-4 w-4" />
-                      <span>Crop / Resize</span>
-                    </button>
-                  </div>
+                {/* Full-size preview canvas */}
+                <div className="group relative flex min-h-[480px] flex-1 items-center justify-center overflow-hidden rounded-xl border bg-muted/30 p-6">
+                  <img
+                    src={previewUrl}
+                    alt="Flyer preview"
+                    className="max-h-[68vh] w-auto max-w-full rounded-md border bg-background object-contain shadow-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCropDialogOpen(true)}
+                    className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-1.5 bg-black/50 text-sm font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                  >
+                    <Crop className="h-5 w-5" />
+                    <span>Crop / Resize</span>
+                  </button>
+                </div>
 
-                  <div className="space-y-1 text-xs text-muted-foreground text-center sm:text-left flex-1">
-                    <p className="font-semibold text-foreground">{selectedFile?.name}</p>
-                    {imgDimensions && (
-                      <p className="font-mono text-[11px]">
-                        {imgDimensions.width} × {imgDimensions.height} px (Aspect Ratio:{" "}
-                        {(imgDimensions.height / imgDimensions.width).toFixed(2)})
-                      </p>
-                    )}
-                    <p className="text-[11px]">
+                {/* File details bar */}
+                <div className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {selectedFile?.name}
+                    </p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {imgDimensions && (
+                        <>
+                          {imgDimensions.width} × {imgDimensions.height} px · ratio{" "}
+                          {(imgDimensions.height / imgDimensions.width).toFixed(2)} ·{" "}
+                        </>
+                      )}
                       {selectedFile && `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`}
                     </p>
-                    <div className="flex items-center gap-2 pt-1 justify-center sm:justify-start">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCropDialogOpen(true)}
-                        className="h-7 text-xs gap-1"
-                      >
-                        <Crop className="h-3 w-3 text-primary" />
-                        Crop &amp; Resize
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Choose Different File
-                      </Button>
-                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCropDialogOpen(true)}
+                      className="h-8 gap-1.5 text-xs"
+                    >
+                      <Crop className="h-3.5 w-3.5 text-primary" />
+                      Crop &amp; Resize
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Choose Different File
+                    </Button>
                   </div>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* Bottom Action Footer with AI Auto-Detect Switch */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t">
-          <div className="flex items-center gap-2.5 text-xs">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={isSubmitting}
+            />
+          </AdminFormSection>
+        </AdminFormBody>
+
+        <AdminFormFooter>
+          <div className="mr-auto flex items-center gap-2.5 text-sm">
             <Switch
               id="autodetect-switch"
               checked={autoDetectOnUpload}
               onCheckedChange={setAutoDetectOnUpload}
             />
-            <Label htmlFor="autodetect-switch" className="cursor-pointer text-xs flex items-center gap-1.5 font-medium">
+            <Label
+              htmlFor="autodetect-switch"
+              className="flex cursor-pointer items-center gap-1.5 font-medium"
+            >
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span>Auto-detect deals, prices, and areas with AI &amp; OCR</span>
+              <span>Auto-detect deals, prices &amp; areas with AI &amp; OCR</span>
             </Label>
           </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              className="text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isSubmitting || !selectedFile}
-              className="text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs"
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Upload className="h-3.5 w-3.5" />
-              )}
-              {isSubmitting ? "Uploading Circular..." : "Publish Flyer & Open Studio"}
-            </Button>
-          </div>
-        </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="h-9 px-4 text-xs"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={isSubmitting || !selectedFile}
+            className="h-9 gap-1.5 px-5 text-xs font-semibold shadow-xs"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
+            )}
+            {isSubmitting ? "Uploading Circular..." : "Publish Flyer & Open Studio"}
+          </Button>
+        </AdminFormFooter>
       </form>
 
       {/* Spreadsheet Flyer Generator Dialog */}
@@ -863,6 +870,6 @@ export function UploadFlyerScreen({
           setMerchantId(created.id);
         }}
       />
-    </div>
+    </AdminFormPage>
   );
 }

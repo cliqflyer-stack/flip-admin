@@ -1,3 +1,4 @@
+import type { Patch } from "@/lib/utils";
 import React, { useEffect, useState } from "react";
 import {
   CalendarClock,
@@ -45,7 +46,7 @@ import {
 
 interface FlyerExpiryDialogProps {
   flyer: ApiFlyer | null;
-  merchant?: Merchant | null;
+  merchant?: Merchant | null | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFlyerUpdated: (updatedFlyer: ApiFlyer) => void;
@@ -109,7 +110,7 @@ export function FlyerExpiryDialog({
 
     setIsSaving(true);
     try {
-      const payload: Partial<ApiFlyer> = {
+      const payload: Patch<ApiFlyer> = {
         status,
         validFrom: validFrom ? toStartOfDayIso(validFrom) : null,
         validTo: validTo ? toEndOfDayIso(validTo) : null,

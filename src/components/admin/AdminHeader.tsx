@@ -20,7 +20,7 @@ interface AdminHeaderProps {
   currentView: AdminView;
   onSelectView: (view: AdminView) => void;
   onOpenUpload: () => void;
-  selectedFlyerTitle?: string;
+  selectedFlyerTitle?: string | undefined;
 }
 
 const VIEW_NAMES: Record<AdminView, string> = {

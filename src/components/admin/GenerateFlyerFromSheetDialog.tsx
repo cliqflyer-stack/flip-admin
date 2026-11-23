@@ -139,7 +139,8 @@ export function GenerateFlyerFromSheetDialog({
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
+        const ws = wsname ? wb.Sheets[wsname] : undefined;
+        if (!ws) throw new Error("Spreadsheet has no sheets.");
         const data: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
         if (data.length < 2) {
@@ -266,7 +267,7 @@ export function GenerateFlyerFromSheetDialog({
 
       // 4. Batch create hotspots with exact computed grid slot coordinates!
       const hotspotItems = generatedOutput.slots.map((slot, idx) => ({
-        productId: productIds[idx] || productIds[0],
+        productId: productIds[idx] || productIds[0] || "",
         x: slot.x,
         y: slot.y,
         width: slot.width,

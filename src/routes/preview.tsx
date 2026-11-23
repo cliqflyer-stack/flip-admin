@@ -43,12 +43,22 @@ import { cn } from "@/lib/utils";
 
 const FlyerPreviewCanvas = lazy(() => import("@/components/flyer/FlyerPreviewCanvas"));
 
+export interface PreviewSearch {
+  flyerId?: string | undefined;
+  storeId?: string | undefined;
+  merchantId?: string | undefined;
+  hotspotId?: string | undefined;
+}
+
+const asOptionalString = (value: unknown): string | undefined =>
+  typeof value === "string" && value ? value : undefined;
+
 export const Route = createFileRoute("/preview")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    flyerId: (search.flyerId as string) || undefined,
-    storeId: (search.storeId as string) || undefined,
-    merchantId: (search.merchantId as string) || undefined,
-    hotspotId: (search.hotspotId as string) || undefined,
+  validateSearch: (search: Record<string, unknown>): PreviewSearch => ({
+    flyerId: asOptionalString(search["flyerId"]),
+    storeId: asOptionalString(search["storeId"]),
+    merchantId: asOptionalString(search["merchantId"]),
+    hotspotId: asOptionalString(search["hotspotId"]),
   }),
   head: () => ({
     meta: [
@@ -223,7 +233,7 @@ function DynamicPreviewPage() {
         name: selectedHotspot?.titleOverride || rawProduct.name,
         brand: rawProduct.brand,
         description: rawProduct.description || "",
-        regularPrice: Number(rawProduct.originalPrice || rawProduct.regularPrice || rawProduct.offerPrice || 0),
+        regularPrice: Number(rawProduct.regularPrice || rawProduct.offerPrice || 0),
         offerPrice: selectedHotspot?.priceOverride
           ? Number(selectedHotspot.priceOverride)
           : Number(rawProduct.offerPrice || 0),

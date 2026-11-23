@@ -1,3 +1,4 @@
+import type { Patch } from "@/lib/utils";
 import React, { useEffect, useRef, useState } from "react";
 import { Building2, Globe, ImageIcon, Loader2, Palette, Sparkles, Upload, X } from "lucide-react";
 import { toast } from "sonner";
@@ -35,8 +36,8 @@ import { cn } from "@/lib/utils";
 interface FranchiseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  franchise?: Merchant | null;
-  categories?: Category[];
+  franchise?: Merchant | null | undefined;
+  categories?: Category[] | undefined;
   onSuccess: (saved: Merchant, isEdit: boolean) => void;
 }
 
@@ -61,8 +62,10 @@ function generateSlug(text: string): string {
 function deriveInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "F";
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  const first = parts[0] ?? "";
+  if (parts.length === 1) return first.substring(0, 2).toUpperCase();
+  const last = parts[parts.length - 1] ?? "";
+  return (first.charAt(0) + last.charAt(0)).toUpperCase();
 }
 
 export function FranchiseDialog({
@@ -163,7 +166,7 @@ export function FranchiseDialog({
 
     setIsSubmitting(true);
     try {
-      const payload: Partial<Merchant> = {
+      const payload: Patch<Merchant> = {
         name: trimmedName,
         slug: finalSlug,
         initial: finalInitial,

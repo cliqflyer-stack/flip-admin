@@ -1,3 +1,4 @@
+import { applyPatch, type Patch } from "@/lib/utils";
 import React, { useState, useEffect } from "react";
 import {
   Sparkles,
@@ -56,8 +57,8 @@ interface Props {
       y: number;
       width: number;
       height: number;
-      titleOverride?: string;
-      priceOverride?: string;
+      titleOverride?: string | undefined;
+      priceOverride?: string | undefined;
     }>
   ) => void;
 }
@@ -118,10 +119,12 @@ export function AutoDetectHotspotsDialog({
     }
   };
 
-  const handleUpdateItem = (index: number, updates: Partial<AutoDetectedItem>) => {
+  const handleUpdateItem = (index: number, updates: Patch<AutoDetectedItem>) => {
     setDetectedItems((prev) => {
       const copy = [...prev];
-      copy[index] = { ...copy[index], ...updates };
+      const current = copy[index];
+      if (!current) return prev;
+      copy[index] = applyPatch(current, updates);
       return copy;
     });
   };
@@ -140,7 +143,7 @@ export function AutoDetectHotspotsDialog({
     const hotspotsToApply = detectedItems
       .filter((item) => item.matchedProductId || item.product?.id || catalogProducts[0]?.id)
       .map((item) => ({
-        productId: item.matchedProductId || item.product?.id || catalogProducts[0]?.id,
+        productId: item.matchedProductId || item.product?.id || catalogProducts[0]?.id || "",
         x: item.box.x,
         y: item.box.y,
         width: item.box.width,

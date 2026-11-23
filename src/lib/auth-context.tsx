@@ -5,7 +5,7 @@ export interface AdminUser {
   email: string;
   name: string;
   role: string;
-  avatarUrl?: string;
+  avatarUrl?: string | undefined;
 }
 
 interface AuthContextType {
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email: remoteUser.user.email,
                 name: remoteUser.user.name,
                 role: remoteUser.user.role,
-                avatarUrl: remoteUser.user.avatarUrl,
+                avatarUrl: remoteUser.user.avatarUrl ?? undefined,
               });
             }
           } catch (e) {
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const adminUser: AdminUser = {
         email: res.user.email,
-        name: res.user.name || cleanEmail.split("@")[0].replace(/[._-]/g, " "),
+        name: res.user.name || (cleanEmail.split("@")[0] ?? cleanEmail).replace(/[._-]/g, " "),
         role: "admin",
         avatarUrl: res.user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
       };

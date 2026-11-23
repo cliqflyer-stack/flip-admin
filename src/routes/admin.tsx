@@ -1,3 +1,4 @@
+import { applyPatch, type Patch } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -40,13 +41,24 @@ import { FlyersView } from "@/components/admin/FlyersView";
 import { StoreFormScreen } from "@/components/admin/StoreFormScreen";
 import { ProductFormScreen } from "@/components/admin/ProductFormScreen";
 
+export interface AdminSearch {
+  view?: AdminView | undefined;
+  flyerId?: string | undefined;
+  storeId?: string | undefined;
+  productId?: string | undefined;
+  franchiseId?: string | undefined;
+}
+
+const asOptionalString = (value: unknown): string | undefined =>
+  typeof value === "string" && value ? value : undefined;
+
 export const Route = createFileRoute("/admin")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    view: (search.view as AdminView) || "dashboard",
-    flyerId: (search.flyerId as string) || undefined,
-    storeId: (search.storeId as string) || undefined,
-    productId: (search.productId as string) || undefined,
-    franchiseId: (search.franchiseId as string) || undefined,
+  validateSearch: (search: Record<string, unknown>): AdminSearch => ({
+    view: (search["view"] as AdminView) || "dashboard",
+    flyerId: asOptionalString(search["flyerId"]),
+    storeId: asOptionalString(search["storeId"]),
+    productId: asOptionalString(search["productId"]),
+    franchiseId: asOptionalString(search["franchiseId"]),
   }),
   head: () => ({
     meta: [
@@ -103,7 +115,7 @@ function AdminContent() {
   ) => {
     navigate({
       search: (prev) => {
-        const next: Record<string, unknown> = {
+        const next: AdminSearch = {
           ...prev,
           view,
         };
@@ -336,8 +348,8 @@ function AdminContent() {
     toast.success("Hotspot mapped to circular canvas.");
   };
 
-  const handleUpdateHotspot = (id: string, update: Partial<Hotspot>) => {
-    setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, ...update } : h)));
+  const handleUpdateHotspot = (id: string, update: Patch<Hotspot>) => {
+    setHotspots((prev) => prev.map((h) => (h.id === id ? applyPatch(h, update) : h)));
   };
 
   const handleDeleteHotspot = (id: string) => {
@@ -390,7 +402,7 @@ function AdminContent() {
       const refreshed = await fetchFlyers();
       setFlyersList(refreshed);
       if (selectedFlyerId === id && refreshed.length > 0) {
-        handleSelectFlyer(refreshed[0].id);
+        handleSelectFlyer(refreshed[0]?.id ?? "");
       }
     } catch (e: any) {
       toast.error(`Could not delete circular: ${e.message}`);

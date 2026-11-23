@@ -2,10 +2,10 @@ import React, { useEffect, useRef } from "react";
 import type L from "leaflet";
 
 interface InteractiveMapPickerProps {
-  latitude?: number | null;
-  longitude?: number | null;
+  latitude?: number | null | undefined;
+  longitude?: number | null | undefined;
   onChange: (lat: number, lng: number) => void;
-  className?: string;
+  className?: string | undefined;
 }
 
 export function InteractiveMapPicker({

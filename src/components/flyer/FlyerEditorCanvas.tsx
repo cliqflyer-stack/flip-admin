@@ -1,3 +1,4 @@
+import type { Patch } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type Konva from "konva";
 import { Ellipse, Image as KonvaImage, Layer, Stage, Text, Transformer } from "react-konva";
@@ -9,16 +10,16 @@ import type { ApiProduct } from "@/lib/api-client";
 
 export interface FlyerEditorCanvasProps {
   imageUrl: string;
-  imageWidth?: number;
-  imageHeight?: number;
+  imageWidth?: number | undefined;
+  imageHeight?: number | undefined;
   hotspots: Hotspot[];
   selectedId: string | null;
-  drawProduct?: ApiProduct | null;
-  catalogProducts?: ApiProduct[];
-  zoom?: number;
+  drawProduct?: ApiProduct | null | undefined;
+  catalogProducts?: ApiProduct[] | undefined;
+  zoom?: number | undefined;
   onSelect: (id: string | null) => void;
   onCreate: (rect: HotspotRect, productId?: string) => void;
-  onUpdate: (id: string, update: Partial<Hotspot>) => void;
+  onUpdate: (id: string, update: Patch<Hotspot>) => void;
   onDelete?: (id: string) => void;
 }
 

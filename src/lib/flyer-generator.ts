@@ -6,14 +6,14 @@
 
 export interface SheetProductRow {
   name: string;
-  brand?: string;
-  description?: string;
+  brand?: string | undefined;
+  description?: string | undefined;
   regularPrice: number;
   offerPrice: number;
-  unit?: string;
-  category?: string;
-  badgeText?: string;
-  imageUrl?: string;
+  unit?: string | undefined;
+  category?: string | undefined;
+  badgeText?: string | undefined;
+  imageUrl?: string | undefined;
 }
 
 export interface GeneratedFlyerSlot {
@@ -26,12 +26,12 @@ export interface GeneratedFlyerSlot {
 
 export interface FlyerGeneratorOptions {
   title: string;
-  subtitle?: string;
+  subtitle?: string | undefined;
   merchantName: string;
-  merchantLogoBg?: string;
-  merchantLogoColor?: string;
-  validityText?: string;
-  themeStyle?: 'supermarket' | 'pharmacy' | 'fresh' | 'clearance';
+  merchantLogoBg?: string | undefined;
+  merchantLogoColor?: string | undefined;
+  validityText?: string | undefined;
+  themeStyle?: 'supermarket' | 'pharmacy' | 'fresh' | 'clearance' | undefined;
   gridColumns?: number; // default 2
   gridRows?: number; // default 3 or 4
 }
@@ -132,6 +132,7 @@ export async function generateFlyerFromProducts(
   // 4. Render Product Cards & compute slots
   for (let i = 0; i < itemsToRender.length; i++) {
     const p = itemsToRender[i];
+    if (!p) continue;
     const colIndex = i % cols;
     const rowIndex = Math.floor(i / cols);
 

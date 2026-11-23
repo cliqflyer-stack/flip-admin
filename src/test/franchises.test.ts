@@ -77,7 +77,7 @@ describe("Franchises Module & Data Synchronization", () => {
     const franchiseFlyers = flyersList.filter((f) => f.merchantId === mockFranchise.id);
 
     expect(franchiseFlyers.length).toBe(1);
-    expect(franchiseFlyers[0].title).toBe("Organic Harvest Weekly");
+    expect(franchiseFlyers[0]?.title).toBe("Organic Harvest Weekly");
   });
 
   it("simulates cascade deletion when a franchise is deleted", () => {
@@ -121,8 +121,8 @@ describe("Franchises Module & Data Synchronization", () => {
       loc.merchantId === updatedFranchise.id ? { ...loc, merchant: updatedFranchise } : loc,
     );
 
-    expect(locations[0].merchant?.name).toBe("Whole Foods Market 365");
-    expect(locations[0].merchant?.logoBg).toBe("#0B7A68");
+    expect(locations[0]?.merchant?.name).toBe("Whole Foods Market 365");
+    expect(locations[0]?.merchant?.logoBg).toBe("#0B7A68");
   });
 
   it("supports dynamic category creation, update, and detachment", () => {
@@ -149,7 +149,7 @@ describe("Franchises Module & Data Synchronization", () => {
     ).toBe("Consumer Electronics & Tech");
 
     // 4. Assign to a merchant
-    let merchantsList = [
+    let merchantsList: Merchant[] = [
       {
         ...mockFranchise,
         id: "merch_bestbuy",
@@ -158,7 +158,7 @@ describe("Franchises Module & Data Synchronization", () => {
         category: newCategory,
       },
     ];
-    expect(merchantsList[0].categoryId).toBe("electronics_tech");
+    expect(merchantsList[0]?.categoryId).toBe("electronics_tech");
 
     // 5. Delete category: detaches merchant safely without deleting the merchant
     const categoryToDelete = "electronics_tech";
@@ -168,7 +168,7 @@ describe("Franchises Module & Data Synchronization", () => {
     );
 
     expect(categoriesList.find((c) => c.id === "electronics_tech")).toBeUndefined();
-    expect(merchantsList[0].categoryId).toBeNull();
-    expect(merchantsList[0].name).toBe("Best Buy Canada"); // Merchant remains intact
+    expect(merchantsList[0]?.categoryId).toBeNull();
+    expect(merchantsList[0]?.name).toBe("Best Buy Canada"); // Merchant remains intact
   });
 });

@@ -11,7 +11,7 @@ interface MultiStoreMapViewProps {
   onToggleStore: (storeId: string) => void;
   onSelectAll?: () => void;
   merchants: Merchant[];
-  className?: string;
+  className?: string | undefined;
 }
 
 export function MultiStoreMapView({
@@ -191,7 +191,8 @@ export function MultiStoreMapView({
       const bounds = L.latLngBounds(latLngs);
       map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
     } else if (latLngs.length === 1) {
-      map.setView(latLngs[0], 13, { animate: true });
+      const only = latLngs[0];
+      if (only) map.setView(only, 13, { animate: true });
     }
   }, [activeStores, merchants, leafletLoaded, onToggleStore]);
 

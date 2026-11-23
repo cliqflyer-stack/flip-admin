@@ -3,7 +3,9 @@
  * Connects directly to the Neon-backed Snatchup REST API.
  */
 
-export const API_BASE = import.meta.env.VITE_API_URL || "https://flip-api-kdfp.onrender.com";
+import type { Patch } from "@/lib/utils";
+
+export const API_BASE = import.meta.env["VITE_API_URL"] || "https://flip-api-kdfp.onrender.com";
 
 export interface StoreLocation {
   id: string;
@@ -12,22 +14,22 @@ export interface StoreLocation {
   address: string;
   city: string;
   province: string;
-  postalCode?: string;
-  latitude?: number;
-  longitude?: number;
-  phone?: string;
-  logoUrl?: string;
-  privacyPolicyUrl?: string | null;
-  termsUrl?: string | null;
-  merchant?: Merchant;
-  flyers?: ApiFlyer[];
+  postalCode?: string | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
+  phone?: string | undefined;
+  logoUrl?: string | undefined;
+  privacyPolicyUrl?: string | null | undefined;
+  termsUrl?: string | null | undefined;
+  merchant?: Merchant | undefined;
+  flyers?: ApiFlyer[] | undefined;
 }
 
 export interface Category {
   id: string;
   name: string;
-  icon?: string | null;
-  displayOrder?: number | null;
+  icon?: string | null | undefined;
+  displayOrder?: number | null | undefined;
 }
 
 export interface Merchant {
@@ -37,22 +39,22 @@ export interface Merchant {
   initial: string;
   logoBg: string;
   logoColor: string;
-  logoUrl?: string | null;
-  bannerUrl?: string | null;
-  categoryId?: string | null;
-  website?: string | null;
-  privacyPolicyUrl?: string | null;
-  termsUrl?: string | null;
-  category?: Category | null;
-  locations?: StoreLocation[];
-  flyers?: ApiFlyer[];
-  createdAt?: string;
-  updatedAt?: string;
+  logoUrl?: string | null | undefined;
+  bannerUrl?: string | null | undefined;
+  categoryId?: string | null | undefined;
+  website?: string | null | undefined;
+  privacyPolicyUrl?: string | null | undefined;
+  termsUrl?: string | null | undefined;
+  category?: Category | null | undefined;
+  locations?: StoreLocation[] | undefined;
+  flyers?: ApiFlyer[] | undefined;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
 }
 
 export interface ApiProduct {
   id: string;
-  merchantId?: string | null;
+  merchantId?: string | null | undefined;
   name: string;
   brand: string;
   description: string;
@@ -60,13 +62,13 @@ export interface ApiProduct {
   offerPrice: string | number;
   unit: string;
   category: string;
-  sku?: string | null;
-  upc?: string | null;
-  options?: ProductOption[];
-  flyerId?: string | null;
+  sku?: string | null | undefined;
+  upc?: string | null | undefined;
+  options?: ProductOption[] | undefined;
+  flyerId?: string | null | undefined;
   imageUrl: string;
-  merchant?: Merchant;
-  createdAt?: string;
+  merchant?: Merchant | undefined;
+  createdAt?: string | undefined;
 }
 
 export interface ProductOption {
@@ -88,44 +90,44 @@ export const PRODUCT_PRESET_IMAGES = [
 export interface ApiHotspot {
   id: string;
   flyerId: string;
-  flyerPageId?: string | null;
+  flyerPageId?: string | null | undefined;
   productId: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  titleOverride?: string | null;
-  priceOverride?: string | null;
-  product?: ApiProduct;
+  titleOverride?: string | null | undefined;
+  priceOverride?: string | null | undefined;
+  product?: ApiProduct | undefined;
 }
 
 export interface ApiFlyer {
   id: string;
   merchantId: string;
-  storeLocationId?: string | null;
+  storeLocationId?: string | null | undefined;
   title: string;
-  subtitle?: string;
-  badgeText?: string;
-  badgeVariant?: string;
+  subtitle?: string | undefined;
+  badgeText?: string | undefined;
+  badgeVariant?: string | undefined;
   flyerImageUrl: string;
   aspectRatio: number;
   status: "draft" | "published" | "archived";
   pageCount: number;
-  createdAt?: string;
-  updatedAt?: string;
-  validFrom?: string | null;
-  validTo?: string | null;
-  merchant?: Merchant;
-  storeLocation?: StoreLocation | null;
-  hotspots?: ApiHotspot[];
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
+  validFrom?: string | null | undefined;
+  validTo?: string | null | undefined;
+  merchant?: Merchant | undefined;
+  storeLocation?: StoreLocation | null | undefined;
+  hotspots?: ApiHotspot[] | undefined;
 }
 
 export interface DashboardStats {
   flyers: number;
   products: number;
   merchants: number;
-  franchises?: number;
-  stores?: number;
+  franchises?: number | undefined;
+  stores?: number | undefined;
   hotspots: number;
 }
 
@@ -151,7 +153,7 @@ export async function fetchFlyerById(id: string): Promise<ApiFlyer> {
   return res.json();
 }
 
-export async function createFlyer(data: Partial<ApiFlyer>): Promise<ApiFlyer> {
+export async function createFlyer(data: Patch<ApiFlyer>): Promise<ApiFlyer> {
   const res = await fetch(`${API_BASE}/api/v1/flyers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -161,7 +163,7 @@ export async function createFlyer(data: Partial<ApiFlyer>): Promise<ApiFlyer> {
   return res.json();
 }
 
-export async function updateFlyer(id: string, data: Partial<ApiFlyer>): Promise<ApiFlyer> {
+export async function updateFlyer(id: string, data: Patch<ApiFlyer>): Promise<ApiFlyer> {
   const res = await fetch(`${API_BASE}/api/v1/flyers/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -182,7 +184,7 @@ export async function deleteFlyer(id: string): Promise<{ success: boolean }> {
 export async function saveHotspotsBatch(
   flyerId: string,
   hotspots: Array<{
-    id?: string;
+    id?: string | undefined;
     productId: string;
     x: number;
     y: number;
@@ -208,7 +210,7 @@ export async function fetchProducts(query?: string, flyerId?: string): Promise<A
   return res.json();
 }
 
-export async function createProduct(data: Partial<ApiProduct>): Promise<ApiProduct> {
+export async function createProduct(data: Patch<ApiProduct>): Promise<ApiProduct> {
   const res = await fetch(`${API_BASE}/api/v1/products`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -218,7 +220,7 @@ export async function createProduct(data: Partial<ApiProduct>): Promise<ApiProdu
   return res.json();
 }
 
-export async function updateProduct(id: string, data: Partial<ApiProduct>): Promise<ApiProduct> {
+export async function updateProduct(id: string, data: Patch<ApiProduct>): Promise<ApiProduct> {
   const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -242,7 +244,7 @@ export async function fetchMerchants(): Promise<Merchant[]> {
   return res.json();
 }
 
-export async function createMerchant(data: Partial<Merchant>): Promise<Merchant> {
+export async function createMerchant(data: Patch<Merchant>): Promise<Merchant> {
   const slug =
     data.slug?.trim() ||
     data.name
@@ -271,8 +273,8 @@ export async function createMerchant(data: Partial<Merchant>): Promise<Merchant>
   return res.json();
 }
 
-export async function updateMerchant(id: string, data: Partial<Merchant>): Promise<Merchant> {
-  const payload: Partial<Merchant> = { ...data };
+export async function updateMerchant(id: string, data: Patch<Merchant>): Promise<Merchant> {
+  const payload: Patch<Merchant> = { ...data };
   if (data.name) payload.name = data.name.trim();
   if (data.slug) payload.slug = data.slug.trim();
   if (data.initial) payload.initial = data.initial.trim();
@@ -321,7 +323,7 @@ export async function fetchCategories(): Promise<Category[]> {
   return DEFAULT_CATEGORIES;
 }
 
-export async function createCategory(data: Partial<Category>): Promise<Category> {
+export async function createCategory(data: Patch<Category>): Promise<Category> {
   const id =
     data.id?.trim() ||
     data.name
@@ -349,7 +351,7 @@ export async function createCategory(data: Partial<Category>): Promise<Category>
   return res.json();
 }
 
-export async function updateCategory(id: string, data: Partial<Category>): Promise<Category> {
+export async function updateCategory(id: string, data: Patch<Category>): Promise<Category> {
   const res = await fetch(`${API_BASE}/api/v1/categories/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -381,7 +383,7 @@ export async function fetchStoreLocations(merchantId?: string): Promise<StoreLoc
   return res.json();
 }
 
-export async function createStoreLocation(data: Partial<StoreLocation>): Promise<StoreLocation> {
+export async function createStoreLocation(data: Patch<StoreLocation>): Promise<StoreLocation> {
   const res = await fetch(`${API_BASE}/api/v1/store-locations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -393,7 +395,7 @@ export async function createStoreLocation(data: Partial<StoreLocation>): Promise
 
 export async function updateStoreLocation(
   id: string,
-  data: Partial<StoreLocation>,
+  data: Patch<StoreLocation>,
 ): Promise<StoreLocation> {
   const res = await fetch(`${API_BASE}/api/v1/store-locations/${id}`, {
     method: "PUT",
@@ -428,8 +430,8 @@ export interface AuthUser {
   email: string;
   name: string;
   role: "admin" | "user";
-  phone?: string | null;
-  avatarUrl?: string | null;
+  phone?: string | null | undefined;
+  avatarUrl?: string | null | undefined;
 }
 
 export interface AuthResponse {
@@ -459,7 +461,7 @@ export async function registerUser(payload: {
   email: string;
   password: string;
   name: string;
-  phone?: string;
+  phone?: string | undefined;
 }): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
     method: "POST",
@@ -502,9 +504,9 @@ export interface FlyerExpiryInfo {
   status: "active" | "expired" | "scheduled" | "no-expiry" | "draft" | "archived";
   badgeLabel: string;
   badgeVariant: "default" | "secondary" | "destructive" | "outline";
-  daysRemaining?: number;
-  formattedExpiry?: string;
-  formattedValidFrom?: string;
+  daysRemaining?: number | undefined;
+  formattedExpiry?: string | undefined;
+  formattedValidFrom?: string | undefined;
   isExpired: boolean;
   isVisibleToShoppers: boolean;
 }
@@ -623,7 +625,7 @@ export function formatIsoDateOnly(isoString?: string | null): string {
   try {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return "";
-    return d.toISOString().split("T")[0];
+    return d.toISOString().split("T")[0] ?? "";
   } catch {
     return "";
   }
@@ -634,7 +636,7 @@ export function formatIsoDateOnly(isoString?: string | null): string {
  */
 export function toEndOfDayIso(dateStr: string): string {
   if (!dateStr) return "";
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [year = 0, month = 1, day = 1] = dateStr.split("-").map(Number);
   const d = new Date(year, month - 1, day, 23, 59, 59, 999);
   return d.toISOString();
 }
@@ -644,7 +646,7 @@ export function toEndOfDayIso(dateStr: string): string {
  */
 export function toStartOfDayIso(dateStr: string): string {
   if (!dateStr) return "";
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [year = 0, month = 1, day = 1] = dateStr.split("-").map(Number);
   const d = new Date(year, month - 1, day, 0, 0, 0, 0);
   return d.toISOString();
 }
@@ -696,22 +698,22 @@ export interface DealSearchResult {
   unit: string;
   productImageUrl: string;
   hasHotspot: boolean;
-  hotspotId?: string;
-  flyerId?: string;
-  flyerTitle?: string;
-  flyerImageUrl?: string;
-  merchantId?: string | null;
-  merchantName?: string;
-  merchantLogoBg?: string;
-  merchantLogoColor?: string;
-  storeLocationId?: string | null;
-  storeName?: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  titleOverride?: string | null;
-  priceOverride?: string | null;
+  hotspotId?: string | undefined;
+  flyerId?: string | undefined;
+  flyerTitle?: string | undefined;
+  flyerImageUrl?: string | undefined;
+  merchantId?: string | null | undefined;
+  merchantName?: string | undefined;
+  merchantLogoBg?: string | undefined;
+  merchantLogoColor?: string | undefined;
+  storeLocationId?: string | null | undefined;
+  storeName?: string | undefined;
+  x?: number | undefined;
+  y?: number | undefined;
+  width?: number | undefined;
+  height?: number | undefined;
+  titleOverride?: string | null | undefined;
+  priceOverride?: string | null | undefined;
 }
 
 export interface AutoDetectedItem {
@@ -726,30 +728,30 @@ export interface AutoDetectedItem {
   category: string;
   box: { x: number; y: number; width: number; height: number };
   confidence: number;
-  croppedImageUrl?: string;
-  matchedProductId?: string | null;
-  isNew?: boolean;
-  product?: ApiProduct;
+  croppedImageUrl?: string | undefined;
+  matchedProductId?: string | null | undefined;
+  isNew?: boolean | undefined;
+  product?: ApiProduct | undefined;
 }
 
 export interface AutoDetectResponse {
   success: boolean;
   count: number;
   items: AutoDetectedItem[];
-  applied?: boolean;
+  applied?: boolean | undefined;
 }
 
 /**
  * Automatically detects deals, text, prices, and bounding boxes on a flyer using AI and OCR.
  */
 export async function autoDetectFlyerHotspots(params: {
-  flyerId?: string;
-  flyerImageUrl?: string;
-  merchantId?: string;
-  useAi?: boolean;
-  apiKey?: string;
-  createMissingProducts?: boolean;
-  applyImmediately?: boolean;
+  flyerId?: string | undefined;
+  flyerImageUrl?: string | undefined;
+  merchantId?: string | undefined;
+  useAi?: boolean | undefined;
+  apiKey?: string | undefined;
+  createMissingProducts?: boolean | undefined;
+  applyImmediately?: boolean | undefined;
 }): Promise<AutoDetectResponse> {
   const res = await fetch(`${API_BASE}/api/v1/flyers/auto-detect`, {
     method: "POST",
@@ -773,7 +775,7 @@ export async function cropBannerArea(params: {
   y: number;
   width: number;
   height: number;
-  productId?: string;
+  productId?: string | undefined;
 }): Promise<{ success: boolean; url: string; filename: string; pixelWidth: number; pixelHeight: number }> {
   const res = await fetch(`${API_BASE}/api/v1/upload/crop`, {
     method: "POST",
@@ -793,9 +795,9 @@ export async function cropBannerArea(params: {
  */
 export async function searchDeals(params: {
   query: string;
-  merchantId?: string;
-  storeLocationId?: string;
-  limit?: number;
+  merchantId?: string | undefined;
+  storeLocationId?: string | undefined;
+  limit?: number | undefined;
 }): Promise<{ query: string; count: number; results: DealSearchResult[] }> {
   const url = new URL(`${API_BASE}/api/v1/search/deals`);
   if (params.query) url.searchParams.set("q", params.query);

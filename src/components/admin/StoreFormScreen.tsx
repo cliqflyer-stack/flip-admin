@@ -1,9 +1,9 @@
 import React, { useRef, useState } from "react";
-import { ArrowLeft, Check, ChevronsUpDown, Loader2, MapPin, Upload } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, MapPin, Store, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,6 +15,15 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  AdminFormBody,
+  AdminFormField,
+  AdminFormFooter,
+  AdminFormHeader,
+  AdminFormPage,
+  AdminFormSection,
+  adminInputClass,
+} from "./AdminFormLayout";
 import { InteractiveMapPicker } from "./InteractiveMapPicker";
 import { FranchiseDialog } from "./FranchiseDialog";
 import {
@@ -28,9 +37,9 @@ import {
 import { cn } from "@/lib/utils";
 
 interface StoreFormScreenProps {
-  storeLocation?: StoreLocation | null;
+  storeLocation?: StoreLocation | null | undefined;
   merchants: Merchant[];
-  initialMerchantId?: string;
+  initialMerchantId?: string | undefined;
   onFranchiseCreated?: (created: Merchant) => void;
   onSave: (location: StoreLocation, isEdit: boolean) => void;
   onCancel: () => void;
@@ -162,66 +171,115 @@ export function StoreFormScreen({
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between border-b pb-4">
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onCancel}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {isEdit ? "Edit Store Location" : "Add Store Location"}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Configure franchise brand, contact info, store logo, and GPS map pin coordinates.
-            </p>
-          </div>
-        </div>
-      </div>
+    <AdminFormPage>
+      <AdminFormHeader
+        title={isEdit ? "Edit Store Location" : "Add Store Location"}
+        description="Set the franchise, branch details, contact information and GPS pin for this store."
+        onBack={onCancel}
+        badge={
+          isEdit ? (
+            <Badge variant="secondary" className="text-[10px]">
+              Editing
+            </Badge>
+          ) : undefined
+        }
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-        {/* Brand & Store Identity Card */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Store Identity & Franchise</CardTitle>
-            <CardDescription className="text-xs">
-              Select the parent brand and configure store branch naming and logo.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Brand Combobox */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium">
-                    Brand Franchise <span className="text-destructive">*</span>
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsAddFranchiseOpen(true)}
-                    className="h-5 px-1.5 text-[11px] font-medium text-primary hover:text-primary hover:underline"
-                  >
-                    + New Franchise
-                  </Button>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
+        <AdminFormBody
+          aside={
+            <AdminFormSection
+              step={3}
+              icon={MapPin}
+              title="GPS Coordinates"
+              description="Click the map to drop a pin, or enter exact coordinates."
+            >
+              {/* Quick City Presets */}
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm font-medium">Quick GTA presets</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.keys(CITY_COORDINATES).map((cName) => (
+                    <button
+                      key={cName}
+                      type="button"
+                      onClick={() => handleCityPreset(cName)}
+                      className={cn(
+                        "rounded-md border px-2.5 py-1 text-xs font-medium capitalize transition-colors",
+                        city.toLowerCase() === cName
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "bg-background hover:bg-muted",
+                      )}
+                    >
+                      {cName}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <AdminFormField label="Latitude" htmlFor="store-lat">
+                  <Input
+                    id="store-lat"
+                    type="number"
+                    step="any"
+                    placeholder="43.8561"
+                    value={latitude ?? ""}
+                    onChange={(e) =>
+                      setLatitude(e.target.value === "" ? null : parseFloat(e.target.value))
+                    }
+                    className={cn(adminInputClass, "font-mono")}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="Longitude" htmlFor="store-lng">
+                  <Input
+                    id="store-lng"
+                    type="number"
+                    step="any"
+                    placeholder="-79.3370"
+                    value={longitude ?? ""}
+                    onChange={(e) =>
+                      setLongitude(e.target.value === "" ? null : parseFloat(e.target.value))
+                    }
+                    className={cn(adminInputClass, "font-mono")}
+                  />
+                </AdminFormField>
+              </div>
+            </AdminFormSection>
+          }
+        >
+          {/* Brand & Store Identity */}
+          <AdminFormSection
+            step={1}
+            icon={Store}
+            title="Store Identity"
+            description="Parent franchise, branch name and optional branch logo."
+          >
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <AdminFormField
+                label="Franchise Brand"
+                required
+                hint={
+                  <button
+                    type="button"
+                    onClick={() => setIsAddFranchiseOpen(true)}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    + New franchise
+                  </button>
+                }
+              >
                 <Popover open={brandOpen} onOpenChange={setBrandOpen}>
                   <PopoverTrigger asChild>
                     <Button
+                      type="button"
                       variant="outline"
                       role="combobox"
                       aria-expanded={brandOpen}
-                      className="w-full justify-between h-9 text-xs"
+                      className="h-10 w-full justify-between px-3 text-sm font-normal"
                     >
                       {selectedMerchant ? (
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex min-w-0 items-center gap-2">
                           <span
                             className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold"
                             style={{
@@ -234,14 +292,14 @@ export function StoreFormScreen({
                           <span className="truncate">{selectedMerchant.name}</span>
                         </div>
                       ) : (
-                        "Search and select brand..."
+                        <span className="text-muted-foreground">Search and select brand…</span>
                       )}
                       <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[320px] p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search retail brand..." className="h-9 text-xs" />
+                      <CommandInput placeholder="Search retail brand..." className="h-9 text-sm" />
                       <CommandList>
                         <CommandEmpty>No brand found.</CommandEmpty>
                         <CommandGroup>
@@ -253,7 +311,7 @@ export function StoreFormScreen({
                                 setMerchantId(merchant.id);
                                 setBrandOpen(false);
                               }}
-                              className="text-xs cursor-pointer flex items-center justify-between"
+                              className="flex cursor-pointer items-center justify-between text-sm"
                             >
                               <div className="flex items-center gap-2">
                                 <span
@@ -280,29 +338,28 @@ export function StoreFormScreen({
                     </Command>
                   </PopoverContent>
                 </Popover>
-              </div>
+              </AdminFormField>
 
-              {/* Branch Name */}
-              <div className="space-y-1.5">
-                <Label htmlFor="store-name" className="text-xs font-medium">
-                  Branch / Location Name <span className="text-destructive">*</span>
-                </Label>
+              <AdminFormField label="Branch Name" htmlFor="store-name" required>
                 <Input
                   id="store-name"
                   placeholder="e.g. Downtown Flagship, Markham Town Square"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
             </div>
 
-            {/* Store Logo Option */}
-            <div className="space-y-1.5 pt-1">
-              <Label className="text-xs font-medium">Store / Branch Logo (Optional)</Label>
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+            {/* Store Logo */}
+            <AdminFormField
+              label="Branch Logo"
+              htmlFor="store-logo"
+              hint="Optional · falls back to the brand badge"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/30">
                   {logoUrl ? (
                     <img
                       src={resolveImageUrl(logoUrl)}
@@ -320,16 +377,17 @@ export function StoreFormScreen({
                       {selectedMerchant.initial}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground text-[10px]">No Logo</span>
+                    <span className="text-[10px] text-muted-foreground">No logo</span>
                   )}
                 </div>
 
-                <div className="flex-1 flex gap-2">
+                <div className="flex min-w-0 flex-1 gap-2">
                   <Input
-                    placeholder="https://... or upload custom logo"
+                    id="store-logo"
+                    placeholder="https://… or upload a logo"
                     value={logoUrl}
                     onChange={(e) => setLogoUrl(e.target.value)}
-                    className="text-xs h-9"
+                    className={adminInputClass}
                   />
                   <Button
                     type="button"
@@ -337,7 +395,7 @@ export function StoreFormScreen({
                     size="sm"
                     onClick={() => logoInputRef.current?.click()}
                     disabled={uploadingLogo}
-                    className="h-9 text-xs gap-1.5 shrink-0"
+                    className="h-10 shrink-0 gap-1.5 text-xs"
                   >
                     {uploadingLogo ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -355,149 +413,117 @@ export function StoreFormScreen({
                   />
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </AdminFormField>
+          </AdminFormSection>
 
-        {/* Address & Contact Information Card */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Address & Contact Information</CardTitle>
-            <CardDescription className="text-xs">
-              Physical store location for customer directions and localized circular delivery.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="store-address" className="text-xs font-medium">
-                Street Address <span className="text-destructive">*</span>
-              </Label>
+          {/* Address & Contact */}
+          <AdminFormSection
+            step={2}
+            icon={MapPin}
+            title="Address & Contact"
+            description="Physical location used for directions and localized circular delivery."
+          >
+            <AdminFormField label="Street Address" htmlFor="store-address" required>
               <Input
                 id="store-address"
                 placeholder="e.g. 100 Main Street, Suite 200"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 required
-                className="text-xs h-9"
+                className={adminInputClass}
               />
-            </div>
+            </AdminFormField>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="store-city" className="text-xs font-medium">
-                  City <span className="text-destructive">*</span>
-                </Label>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <AdminFormField label="City" htmlFor="store-city" required>
                 <Input
                   id="store-city"
                   placeholder="Markham"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   required
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="store-province" className="text-xs font-medium">
-                  Province
-                </Label>
+              <AdminFormField label="Province" htmlFor="store-province">
                 <Input
                   id="store-province"
                   placeholder="ON"
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="store-postal" className="text-xs font-medium">
-                  Postal Code
-                </Label>
+              <AdminFormField label="Postal Code" htmlFor="store-postal">
                 <Input
                   id="store-postal"
                   placeholder="L3R 9M4"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="store-phone" className="text-xs font-medium">
-                  Phone Number
-                </Label>
+              <AdminFormField label="Phone" htmlFor="store-phone">
                 <Input
                   id="store-phone"
+                  type="tel"
                   placeholder="(905) 555-0199"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
+            </div>
 
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="store-privacy" className="text-xs font-medium">
-                  Privacy Policy URL (optional override)
-                </Label>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <AdminFormField
+                label="Privacy Policy URL"
+                htmlFor="store-privacy"
+                hint="Optional override"
+                description="Leave empty to use the franchise policy."
+              >
                 <Input
                   id="store-privacy"
-                  placeholder="Leave empty to use the franchise policy"
+                  placeholder="https://…"
                   value={privacyPolicyUrl}
                   onChange={(e) => setPrivacyPolicyUrl(e.target.value)}
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="store-terms" className="text-xs font-medium">
-                  Terms &amp; Conditions URL (optional override)
-                </Label>
+              <AdminFormField
+                label="Terms & Conditions URL"
+                htmlFor="store-terms"
+                hint="Optional override"
+                description="Leave empty to use the franchise terms."
+              >
                 <Input
                   id="store-terms"
-                  placeholder="Leave empty to use the franchise terms"
+                  placeholder="https://…"
                   value={termsUrl}
                   onChange={(e) => setTermsUrl(e.target.value)}
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
             </div>
-          </CardContent>
-        </Card>
+          </AdminFormSection>
 
-        {/* Interactive Map & GPS Coordinates Card */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">GPS Map Pin & Coordinates</CardTitle>
-            <CardDescription className="text-xs">
-              Click anywhere on the map to drop a pin, or enter manual coordinates to position the
-              location.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Quick City Presets */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] font-semibold text-muted-foreground mr-1">
-                Quick GTA Presets:
-              </span>
-              {Object.keys(CITY_COORDINATES).map((cName) => (
-                <button
-                  key={cName}
-                  type="button"
-                  onClick={() => handleCityPreset(cName)}
-                  className={cn(
-                    "rounded-md border px-2 py-0.5 text-[11px] capitalize transition-colors font-medium",
-                    city.toLowerCase() === cName
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "bg-muted/40 hover:bg-muted",
-                  )}
-                >
-                  {cName}
-                </button>
-              ))}
-            </div>
-
-            {/* Interactive Pin-Drop Leaflet Map */}
+          {/* Interactive Map */}
+          <AdminFormSection
+            icon={MapPin}
+            title="Map Pin"
+            description="Drag or click the map to position this store precisely."
+            action={
+              <Badge variant="outline" className="font-mono text-[10px]">
+                {latitude !== null && longitude !== null
+                  ? `${Number(latitude).toFixed(4)}, ${Number(longitude).toFixed(4)}`
+                  : "No pin set"}
+              </Badge>
+            }
+          >
             <InteractiveMapPicker
               latitude={latitude}
               longitude={longitude}
@@ -505,56 +531,19 @@ export function StoreFormScreen({
                 setLatitude(newLat);
                 setLongitude(newLng);
               }}
-              className="h-80 w-full rounded-lg border"
+              className="h-[420px] w-full overflow-hidden rounded-lg border"
             />
+          </AdminFormSection>
+        </AdminFormBody>
 
-            {/* Manual Coordinate Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div className="space-y-1.5">
-                <Label htmlFor="store-lat" className="text-xs font-medium">
-                  Latitude (e.g. 43.8561)
-                </Label>
-                <Input
-                  id="store-lat"
-                  type="number"
-                  step="any"
-                  placeholder="43.8561"
-                  value={latitude ?? ""}
-                  onChange={(e) =>
-                    setLatitude(e.target.value === "" ? null : parseFloat(e.target.value))
-                  }
-                  className="text-xs h-9 font-mono"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="store-lng" className="text-xs font-medium">
-                  Longitude (e.g. -79.3370)
-                </Label>
-                <Input
-                  id="store-lng"
-                  type="number"
-                  step="any"
-                  placeholder="-79.3370"
-                  value={longitude ?? ""}
-                  onChange={(e) =>
-                    setLongitude(e.target.value === "" ? null : parseFloat(e.target.value))
-                  }
-                  className="text-xs h-9 font-mono"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <AdminFormFooter>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="text-xs"
+            className="h-9 px-4 text-xs"
           >
             Cancel
           </Button>
@@ -562,7 +551,7 @@ export function StoreFormScreen({
             type="submit"
             size="sm"
             disabled={isSubmitting}
-            className="text-xs font-semibold gap-1.5"
+            className="h-9 gap-1.5 px-5 text-xs font-semibold shadow-xs"
           >
             {isSubmitting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -575,7 +564,7 @@ export function StoreFormScreen({
                 ? "Update Store Location"
                 : "Create Store Location"}
           </Button>
-        </div>
+        </AdminFormFooter>
       </form>
 
       {/* Quick Add Franchise Modal */}
@@ -589,6 +578,6 @@ export function StoreFormScreen({
           setMerchantId(created.id);
         }}
       />
-    </div>
+    </AdminFormPage>
   );
 }

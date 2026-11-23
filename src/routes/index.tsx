@@ -36,6 +36,7 @@ function IndexRouteContent() {
       }, 500);
       return () => clearTimeout(timeout);
     }
+    return undefined;
   }, [isAuthenticated, isLoading, navigate]);
 
   if (isLoading) {

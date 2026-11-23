@@ -29,6 +29,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -62,10 +63,10 @@ export type AdminView =
 interface AdminSidebarProps {
   currentView: AdminView;
   onSelectView: (view: AdminView) => void;
-  flyersCount?: number;
-  productsCount?: number;
-  storeLocationsCount?: number;
-  merchantsCount?: number;
+  flyersCount?: number | undefined;
+  productsCount?: number | undefined;
+  storeLocationsCount?: number | undefined;
+  merchantsCount?: number | undefined;
 }
 
 export function AdminSidebar({
@@ -77,6 +78,13 @@ export function AdminSidebar({
   merchantsCount = 0,
 }: AdminSidebarProps) {
   const { user, logout } = useAuth();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  // On mobile the sidebar is a sheet: close it after choosing a destination.
+  const selectView = (view: AdminView) => {
+    onSelectView(view);
+    if (isMobile) setOpenMobile(false);
+  };
 
   const isFranchisesActive =
     currentView === "franchises" ||
@@ -187,7 +195,7 @@ export function AdminSidebar({
                     <SidebarMenuButton
                       isActive={isActive}
                       tooltip={item.title}
-                      onClick={() => onSelectView(item.id)}
+                      onClick={() => selectView(item.id)}
                       className={`cursor-pointer font-medium text-xs h-9 transition-colors ${
                         isActive
                           ? "bg-primary/10 text-primary font-semibold dark:bg-primary/20 dark:text-primary"
@@ -225,7 +233,7 @@ export function AdminSidebar({
                     <SidebarMenuButton
                       isActive={isActive}
                       tooltip={item.title}
-                      onClick={() => onSelectView(item.id)}
+                      onClick={() => selectView(item.id)}
                       className={`cursor-pointer font-medium text-xs h-9 transition-colors ${
                         isActive
                           ? "bg-primary/10 text-primary font-semibold dark:bg-primary/20 dark:text-primary"
@@ -252,7 +260,7 @@ export function AdminSidebar({
                   tooltip="Customer Preview"
                   className="font-medium text-xs h-9 text-muted-foreground hover:text-foreground"
                 >
-                  <Link to="/preview">
+                  <Link to="/preview" onClick={() => isMobile && setOpenMobile(false)}>
                     <Eye className="h-4 w-4 text-primary" />
                     <span>Shopper Preview</span>
                     <ExternalLink className="ml-auto h-3 w-3 opacity-60" />
@@ -277,7 +285,7 @@ export function AdminSidebar({
                     <SidebarMenuButton
                       isActive={isActive}
                       tooltip={item.title}
-                      onClick={() => onSelectView(item.id)}
+                      onClick={() => selectView(item.id)}
                       className={`cursor-pointer font-medium text-xs h-9 transition-colors ${
                         isActive
                           ? "bg-primary/10 text-primary font-semibold dark:bg-primary/20 dark:text-primary"
@@ -329,7 +337,7 @@ export function AdminSidebar({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => onSelectView("settings")}
+              onClick={() => selectView("settings")}
               className="cursor-pointer gap-2 text-xs"
             >
               <Settings className="h-3.5 w-3.5" />

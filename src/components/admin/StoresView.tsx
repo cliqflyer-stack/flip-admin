@@ -44,7 +44,7 @@ interface StoresViewProps {
   merchants: Merchant[];
   storeLocations: StoreLocation[];
   flyers: ApiFlyer[];
-  initialMerchantId?: string;
+  initialMerchantId?: string | undefined;
   onNavigateToAddStore: () => void;
   onNavigateToEditStore: (storeId: string) => void;
   onLocationDeleted: (id: string) => void;
@@ -151,7 +151,7 @@ export function StoresView({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
+        if (entries[0]?.isIntersecting) {
           setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length));
         }
       },

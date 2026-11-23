@@ -102,6 +102,6 @@ describe("Store Locations & Dynamic Flyer Preview", () => {
       (f) => !f.storeLocationId || f.storeLocationId === "loc_suburb_99"
     );
     expect(suburbFlyers.length).toBe(1);
-    expect(suburbFlyers[0].id).toBe("flyer_chain_01");
+    expect(suburbFlyers[0]?.id).toBe("flyer_chain_01");
   });
 });

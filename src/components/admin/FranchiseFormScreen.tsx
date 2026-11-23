@@ -1,23 +1,9 @@
+import type { Patch } from "@/lib/utils";
 import React, { useEffect, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  Building2,
-  Check,
-  ChevronsUpDown,
-  ExternalLink,
-  Globe,
-  ImageIcon,
-  Loader2,
-  Palette,
-  Sparkles,
-  Tag,
-  Upload,
-  X,
-} from "lucide-react";
+import { Building2, Globe, ImageIcon, Loader2, Palette, Sparkles, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AdminFormBody,
+  AdminFormField,
+  AdminFormFooter,
+  AdminFormHeader,
+  AdminFormPage,
+  AdminFormSection,
+  adminInputClass,
+  adminSelectTriggerClass,
+} from "./AdminFormLayout";
 import { CategoriesManagerDialog, RenderCategoryIcon } from "./CategoriesManagerDialog";
 import {
   createMerchant,
@@ -41,9 +37,9 @@ import {
 import { cn } from "@/lib/utils";
 
 interface FranchiseFormScreenProps {
-  franchise?: Merchant | null;
-  categories?: Category[];
-  merchants?: Merchant[];
+  franchise?: Merchant | null | undefined;
+  categories?: Category[] | undefined;
+  merchants?: Merchant[] | undefined;
   onCategoryCreated?: (created: Category) => void;
   onSave: (saved: Merchant, isEdit: boolean) => void;
   onCancel: () => void;
@@ -80,8 +76,10 @@ function generateSlug(text: string): string {
 function deriveInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "F";
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  const first = parts[0] ?? "";
+  if (parts.length === 1) return first.substring(0, 2).toUpperCase();
+  const last = parts[parts.length - 1] ?? "";
+  return (first.charAt(0) + last.charAt(0)).toUpperCase();
 }
 
 export function FranchiseFormScreen({
@@ -121,13 +119,13 @@ export function FranchiseFormScreen({
     if (propCategories && propCategories.length > 0) {
       setCategories(propCategories);
       if (!franchise?.categoryId) {
-        setCategoryId(propCategories[0].id);
+        setCategoryId(propCategories[0]?.id ?? "");
       }
     } else {
       fetchCategories().then((cats) => {
         setCategories(cats);
         if (!franchise?.categoryId && cats.length > 0) {
-          setCategoryId(cats[0].id);
+          setCategoryId(cats[0]?.id ?? "");
         }
       });
     }
@@ -193,7 +191,7 @@ export function FranchiseFormScreen({
 
     setIsSubmitting(true);
     try {
-      const payload: Partial<Merchant> = {
+      const payload: Patch<Merchant> = {
         name: trimmedName,
         slug: finalSlug,
         initial: finalInitial,
@@ -227,71 +225,84 @@ export function FranchiseFormScreen({
   const currentInitials = initial.trim() || deriveInitials(name) || "F";
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header bar */}
-      <div className="flex items-center justify-between border-b pb-4">
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onCancel}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {isEdit ? "Edit Franchise Brand" : "Add Franchise Brand"}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Configure brand identity, colors, logo, category, and website for this retail chain.
-            </p>
-          </div>
-        </div>
-      </div>
+    <AdminFormPage>
+      <AdminFormHeader
+        title={isEdit ? "Edit Franchise Brand" : "Add Franchise Brand"}
+        description="Configure brand identity, colors, logo and legal links for this retail chain."
+        onBack={onCancel}
+        badge={
+          isEdit ? (
+            <Badge variant="secondary" className="text-[10px]">
+              Editing
+            </Badge>
+          ) : undefined
+        }
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-        {/* Core Identity */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              Brand Identity
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Primary naming, unique handle slug, category, and online store website.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Franchise Name */}
-              <div className="space-y-1.5">
-                <Label htmlFor="franchise-name" className="text-xs font-medium">
-                  Franchise Brand Name <span className="text-destructive">*</span>
-                </Label>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
+        <AdminFormBody
+          aside={
+            <AdminFormSection
+              icon={Sparkles}
+              title="Live Brand Preview"
+              description="How the badge appears in light and dark mode across the app."
+            >
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 rounded-lg border bg-white p-3 text-zinc-900 shadow-2xs">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-sm font-bold shadow-xs"
+                    style={{ backgroundColor: logoBg, color: logoColor }}
+                  >
+                    {currentInitials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{name || "Brand Name"}</p>
+                    <p className="font-mono text-[11px] text-zinc-500">Light mode</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-zinc-100 shadow-2xs">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-sm font-bold shadow-xs"
+                    style={{ backgroundColor: logoBg, color: logoColor }}
+                  >
+                    {currentInitials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{name || "Brand Name"}</p>
+                    <p className="font-mono text-[11px] text-zinc-400">Dark mode</p>
+                  </div>
+                </div>
+              </div>
+            </AdminFormSection>
+          }
+        >
+          {/* Core Identity */}
+          <AdminFormSection
+            step={1}
+            icon={Building2}
+            title="Brand Identity"
+            description="Name, unique handle, category and online presence."
+          >
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <AdminFormField label="Brand Name" htmlFor="franchise-name" required>
                 <Input
                   id="franchise-name"
                   placeholder="e.g. Whole Foods Market, Metro, Sobeys"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className="h-9 text-xs"
+                  className={adminInputClass}
                   required
                 />
-              </div>
+              </AdminFormField>
 
-              {/* Slug / Handle */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="franchise-slug" className="text-xs font-medium">
-                    Brand Slug / Identifier <span className="text-destructive">*</span>
-                  </Label>
-                  <span className="text-[10px] text-muted-foreground">
-                    Used in URLs & system tags
-                  </span>
-                </div>
+              <AdminFormField
+                label="Brand Slug"
+                htmlFor="franchise-slug"
+                required
+                hint="Used in URLs & system tags"
+              >
                 <div className="relative">
-                  <span className="absolute left-2.5 top-2.5 text-muted-foreground font-mono text-xs">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-muted-foreground">
                     @
                   </span>
                   <Input
@@ -302,22 +313,18 @@ export function FranchiseFormScreen({
                       setIsSlugManual(true);
                       setSlug(generateSlug(e.target.value));
                     }}
-                    className="h-9 pl-7 font-mono text-xs"
+                    className={cn(adminInputClass, "pl-7 font-mono")}
                     required
                   />
                 </div>
-              </div>
-            </div>
+              </AdminFormField>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-              {/* Initials Badge */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="franchise-initial" className="text-xs font-medium">
-                    Badge Initials <span className="text-destructive">*</span>
-                  </Label>
-                  <span className="text-[10px] text-muted-foreground">1–3 letters</span>
-                </div>
+              <AdminFormField
+                label="Badge Initials"
+                htmlFor="franchise-initial"
+                required
+                hint="1–4 letters"
+              >
                 <Input
                   id="franchise-initial"
                   placeholder="WF"
@@ -327,34 +334,31 @@ export function FranchiseFormScreen({
                     setIsInitialManual(true);
                     setInitial(e.target.value.toUpperCase());
                   }}
-                  className="h-9 font-bold tracking-wider uppercase text-xs"
+                  className={cn(adminInputClass, "font-semibold uppercase tracking-wider")}
                   required
                 />
-              </div>
+              </AdminFormField>
 
-              {/* Category */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="franchise-category" className="text-xs font-medium">
-                    Retail Category
-                  </Label>
-                  <Button
+              <AdminFormField
+                label="Retail Category"
+                htmlFor="franchise-category"
+                hint={
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
                     onClick={() => setIsManageCatOpen(true)}
-                    className="h-5 px-1.5 text-[11px] font-medium text-primary hover:text-primary hover:underline"
+                    className="font-medium text-primary hover:underline"
                   >
-                    + Manage Categories
-                  </Button>
-                </div>
+                    Manage categories
+                  </button>
+                }
+              >
                 <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger id="franchise-category" className="h-9 text-xs">
+                  <SelectTrigger id="franchise-category" className={adminSelectTriggerClass}>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id} className="text-xs">
+                      <SelectItem key={cat.id} value={cat.id} className="text-sm">
                         <div className="flex items-center gap-2">
                           <RenderCategoryIcon
                             icon={cat.icon}
@@ -366,213 +370,154 @@ export function FranchiseFormScreen({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </AdminFormField>
 
-              {/* Website */}
-              <div className="space-y-1.5">
-                <Label htmlFor="franchise-website" className="text-xs font-medium">
-                  Official Website (Optional)
-                </Label>
+              <AdminFormField label="Official Website" htmlFor="franchise-website" hint="Optional">
                 <div className="relative">
-                  <Globe className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="franchise-website"
+
                     placeholder="https://example.com"
                     value={website}
                     onChange={(e) => setWebsite(e.target.value)}
-                    className="h-9 pl-8 text-xs"
+                    className={cn(adminInputClass, "pl-9")}
                   />
                 </div>
-              </div>
+              </AdminFormField>
 
-              {/* Legal: privacy policy & terms (shown in the customer app product sheet) */}
-              <div className="space-y-1.5">
-                <Label htmlFor="franchise-privacy" className="text-xs font-medium">
-                  Privacy Policy URL
-                </Label>
+              <AdminFormField label="Privacy Policy URL" htmlFor="franchise-privacy">
                 <Input
                   id="franchise-privacy"
+
                   placeholder="https://..."
                   value={privacyPolicyUrl}
                   onChange={(e) => setPrivacyPolicyUrl(e.target.value)}
-                  className="h-9 text-xs"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="franchise-terms" className="text-xs font-medium">
-                  Terms &amp; Conditions URL
-                </Label>
+              <AdminFormField label="Terms & Conditions URL" htmlFor="franchise-terms">
                 <Input
                   id="franchise-terms"
+
                   placeholder="https://..."
                   value={termsUrl}
                   onChange={(e) => setTermsUrl(e.target.value)}
-                  className="h-9 text-xs"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
             </div>
-          </CardContent>
-        </Card>
+          </AdminFormSection>
 
-        {/* Brand Theme & Appearance */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Palette className="h-4 w-4 text-primary" />
-              Brand Theme &amp; Colors
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Select signature colors for pins, flyers, logos, and store badges across the
-              application.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Brand Theme & Colors */}
+          <AdminFormSection
+            step={2}
+            icon={Palette}
+            title="Brand Theme & Colors"
+            description="Signature colors used for pins, flyers, logos and store badges."
+          >
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Background Color */}
-              <div className="space-y-2.5">
-                <Label className="text-xs font-medium flex items-center justify-between">
-                  <span>Logo Background Color</span>
-                  <span className="font-mono text-[11px] text-muted-foreground">{logoBg}</span>
-                </Label>
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="franchise-logo-bg" className="text-sm font-medium">
+                    Logo Background
+                  </Label>
+                  <span className="font-mono text-xs text-muted-foreground">{logoBg}</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
+                    id="franchise-logo-bg"
                     type="color"
                     value={logoBg}
                     onChange={(e) => setLogoBg(e.target.value)}
-                    className="h-9 w-12 rounded cursor-pointer border p-0.5 bg-background shrink-0"
+                    className="h-10 w-12 shrink-0 cursor-pointer rounded-md border bg-background p-1"
                   />
                   <Input
                     value={logoBg}
                     onChange={(e) => setLogoBg(e.target.value)}
                     placeholder="#075E50"
-                    className="h-9 font-mono text-xs"
+                    className={cn(adminInputClass, "font-mono")}
                   />
                 </div>
-                {/* Preset swatches */}
-                <div className="space-y-1">
-                  <span className="text-[10px] text-muted-foreground">Quick Palette:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {PRESET_BG_COLORS.map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setLogoBg(c.hex)}
-                        title={c.label}
-                        className={cn(
-                          "h-5 w-5 rounded-full border shadow-2xs transition-transform hover:scale-110",
-                          logoBg.toLowerCase() === c.hex.toLowerCase() &&
-                            "ring-2 ring-primary ring-offset-1",
-                        )}
-                        style={{ backgroundColor: c.hex }}
-                      />
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {PRESET_BG_COLORS.map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      onClick={() => setLogoBg(c.hex)}
+                      title={c.label}
+                      aria-label={c.label}
+                      className={cn(
+                        "h-7 w-7 rounded-full border shadow-2xs transition-transform hover:scale-110",
+                        logoBg.toLowerCase() === c.hex.toLowerCase() &&
+                          "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                      )}
+                      style={{ backgroundColor: c.hex }}
+                    />
+                  ))}
                 </div>
               </div>
 
               {/* Text / Initial Color */}
-              <div className="space-y-2.5">
-                <Label className="text-xs font-medium flex items-center justify-between">
-                  <span>Badge Text / Foreground Color</span>
-                  <span className="font-mono text-[11px] text-muted-foreground">{logoColor}</span>
-                </Label>
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="franchise-logo-color" className="text-sm font-medium">
+                    Badge Text Color
+                  </Label>
+                  <span className="font-mono text-xs text-muted-foreground">{logoColor}</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
+                    id="franchise-logo-color"
                     type="color"
                     value={logoColor}
                     onChange={(e) => setLogoColor(e.target.value)}
-                    className="h-9 w-12 rounded cursor-pointer border p-0.5 bg-background shrink-0"
+                    className="h-10 w-12 shrink-0 cursor-pointer rounded-md border bg-background p-1"
                   />
                   <Input
                     value={logoColor}
                     onChange={(e) => setLogoColor(e.target.value)}
                     placeholder="#FFFFFF"
-                    className="h-9 font-mono text-xs"
+                    className={cn(adminInputClass, "font-mono")}
                   />
                 </div>
-                {/* Preset swatches */}
-                <div className="space-y-1">
-                  <span className="text-[10px] text-muted-foreground">Quick Palette:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {PRESET_TEXT_COLORS.map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setLogoColor(c.hex)}
-                        title={c.label}
-                        className={cn(
-                          "h-5 w-5 rounded-full border shadow-2xs transition-transform hover:scale-110",
-                          logoColor.toLowerCase() === c.hex.toLowerCase() &&
-                            "ring-2 ring-primary ring-offset-1",
-                        )}
-                        style={{ backgroundColor: c.hex }}
-                      />
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {PRESET_TEXT_COLORS.map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      onClick={() => setLogoColor(c.hex)}
+                      title={c.label}
+                      aria-label={c.label}
+                      className={cn(
+                        "h-7 w-7 rounded-full border shadow-2xs transition-transform hover:scale-110",
+                        logoColor.toLowerCase() === c.hex.toLowerCase() &&
+                          "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                      )}
+                      style={{ backgroundColor: c.hex }}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
+          </AdminFormSection>
 
-            {/* Live Interactive Preview */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Live Brand Badge Preview
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Light preview card */}
-                <div className="p-3 rounded-md bg-white text-zinc-900 border shadow-2xs flex items-center gap-3">
-                  <div
-                    className="h-10 w-10 rounded-md flex items-center justify-center font-bold text-sm shrink-0 shadow-xs"
-                    style={{ backgroundColor: logoBg, color: logoColor }}
-                  >
-                    {currentInitials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-xs truncate">{name || "Brand Name Preview"}</p>
-                    <p className="text-[10px] text-zinc-500 font-mono">Light Mode Preview</p>
-                  </div>
-                </div>
-
-                {/* Dark preview card */}
-                <div className="p-3 rounded-md bg-zinc-900 text-zinc-100 border border-zinc-800 shadow-2xs flex items-center gap-3">
-                  <div
-                    className="h-10 w-10 rounded-md flex items-center justify-center font-bold text-sm shrink-0 shadow-xs"
-                    style={{ backgroundColor: logoBg, color: logoColor }}
-                  >
-                    {currentInitials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-xs truncate">{name || "Brand Name Preview"}</p>
-                    <p className="text-[10px] text-zinc-400 font-mono">Dark Mode Preview</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Media: Logo & Banner */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <ImageIcon className="h-4 w-4 text-primary" />
-              Brand Logo &amp; Media Assets
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Upload high-resolution vector or PNG logos to display instead of the default initial
-              badge.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Media: Logo & Banner */}
+          <AdminFormSection
+            step={3}
+            icon={ImageIcon}
+            title="Logo & Media"
+            description="Upload a PNG or SVG logo to replace the default initial badge. The banner is optional."
+          >
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Logo Upload */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Franchise Logo Image</Label>
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium">Franchise Logo</Label>
+                <div className="flex items-start gap-4">
                   {logoUrl ? (
-                    <div className="relative h-14 w-14 rounded-md border bg-background p-1 flex items-center justify-center shrink-0">
+                    <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border bg-background p-2">
                       <img
                         src={resolveImageUrl(logoUrl)}
                         alt="Logo"
@@ -581,21 +526,22 @@ export function FranchiseFormScreen({
                       <button
                         type="button"
                         onClick={() => setLogoUrl("")}
-                        className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-[10px]"
+                        aria-label="Remove logo"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-xs"
                       >
-                        <X className="h-2.5 w-2.5" />
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   ) : (
                     <div
-                      className="h-14 w-14 rounded-md flex items-center justify-center font-bold text-base shrink-0 border"
+                      className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border text-lg font-bold"
                       style={{ backgroundColor: logoBg, color: logoColor }}
                     >
                       {currentInitials}
                     </div>
                   )}
 
-                  <div className="flex-1 space-y-1.5">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <input
                       ref={logoInputRef}
                       type="file"
@@ -609,36 +555,34 @@ export function FranchiseFormScreen({
                       size="sm"
                       onClick={() => logoInputRef.current?.click()}
                       disabled={isUploadingLogo}
-                      className="h-8 text-xs gap-1.5 w-full"
+                      className="h-9 w-full gap-1.5 text-xs"
                     >
                       {isUploadingLogo ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Uploading...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <>
-                          <Upload className="h-3.5 w-3.5" />
-                          Upload Logo (PNG/SVG)
-                        </>
+                        <Upload className="h-3.5 w-3.5" />
                       )}
+                      {isUploadingLogo ? "Uploading..." : "Upload Logo (PNG/SVG)"}
                     </Button>
                     <Input
                       placeholder="Or paste image URL"
                       value={logoUrl}
                       onChange={(e) => setLogoUrl(e.target.value)}
-                      className="h-7 text-[11px]"
+                      className="h-9 text-xs"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Banner Upload */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Header Banner (Optional)</Label>
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium">
+                  Header Banner{" "}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <div className="flex items-start gap-4">
                   {bannerUrl ? (
-                    <div className="relative h-14 w-24 rounded-md border bg-background overflow-hidden flex items-center justify-center shrink-0">
+                    <div className="relative flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-background">
                       <img
                         src={resolveImageUrl(bannerUrl)}
                         alt="Banner"
@@ -647,18 +591,19 @@ export function FranchiseFormScreen({
                       <button
                         type="button"
                         onClick={() => setBannerUrl("")}
-                        className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-[10px]"
+                        aria-label="Remove banner"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-xs"
                       >
-                        <X className="h-2.5 w-2.5" />
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   ) : (
-                    <div className="h-14 w-24 rounded-md bg-muted border flex items-center justify-center text-muted-foreground shrink-0 text-[10px]">
-                      No Banner
+                    <div className="flex h-20 w-32 shrink-0 items-center justify-center rounded-lg border border-dashed bg-muted/40 text-xs text-muted-foreground">
+                      No banner
                     </div>
                   )}
 
-                  <div className="flex-1 space-y-1.5">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <input
                       ref={bannerInputRef}
                       type="file"
@@ -672,35 +617,29 @@ export function FranchiseFormScreen({
                       size="sm"
                       onClick={() => bannerInputRef.current?.click()}
                       disabled={isUploadingBanner}
-                      className="h-8 text-xs gap-1.5 w-full"
+                      className="h-9 w-full gap-1.5 text-xs"
                     >
                       {isUploadingBanner ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Uploading...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <>
-                          <Upload className="h-3.5 w-3.5" />
-                          Upload Banner Image
-                        </>
+                        <Upload className="h-3.5 w-3.5" />
                       )}
+                      {isUploadingBanner ? "Uploading..." : "Upload Banner Image"}
                     </Button>
                     <Input
                       placeholder="Or paste banner URL"
                       value={bannerUrl}
                       onChange={(e) => setBannerUrl(e.target.value)}
-                      className="h-7 text-[11px]"
+                      className="h-9 text-xs"
                     />
                   </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </AdminFormSection>
+        </AdminFormBody>
 
-        {/* Action Bar */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <AdminFormFooter>
           <Button
             type="button"
             variant="outline"
@@ -711,17 +650,16 @@ export function FranchiseFormScreen({
           >
             Cancel
           </Button>
-
           <Button
             type="submit"
             size="sm"
             disabled={isSubmitting}
-            className="h-9 px-5 text-xs bg-primary text-primary-foreground shadow-xs gap-1.5"
+            className="h-9 gap-1.5 px-5 text-xs font-semibold shadow-xs"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Saving to Database...
+                Saving...
               </>
             ) : isEdit ? (
               "Update Franchise"
@@ -729,7 +667,7 @@ export function FranchiseFormScreen({
               "Create Franchise"
             )}
           </Button>
-        </div>
+        </AdminFormFooter>
       </form>
 
       {/* Dynamic Categories Manager Modal */}
@@ -740,11 +678,12 @@ export function FranchiseFormScreen({
         merchants={merchants}
         onCategoriesUpdated={(newList) => {
           setCategories(newList);
-          if (onCategoryCreated && newList.length > categories.length) {
-            onCategoryCreated(newList[newList.length - 1]);
+          const created = newList[newList.length - 1];
+          if (onCategoryCreated && created && newList.length > categories.length) {
+            onCategoryCreated(created);
           }
         }}
       />
-    </div>
+    </AdminFormPage>
   );
 }

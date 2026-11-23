@@ -1,25 +1,41 @@
 import React, { useState } from "react";
 import {
   CheckCircle2,
+  Database,
   Globe,
+  KeyRound,
   Loader2,
   LogOut,
   Moon,
+  Palette,
   RefreshCw,
   Server,
-  Shield,
   Sun,
   Trash2,
+  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { API_BASE } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-provider";
+import { cn } from "@/lib/utils";
+import { AdminFormHeader, AdminFormPage, AdminFormSection } from "./AdminFormLayout";
+
+const SETTINGS_NAV = [
+  { id: "settings-appearance", label: "Appearance", icon: Palette },
+  { id: "settings-api", label: "API Service", icon: Server },
+  { id: "settings-account", label: "Account", icon: UserRound },
+  { id: "settings-data", label: "Local Data", icon: Database },
+] as const;
+
+const THEME_OPTIONS = [
+  { value: "light", label: "Light", icon: Sun, description: "Bright surfaces" },
+  { value: "dark", label: "Dark", icon: Moon, description: "Low-light friendly" },
+  { value: "system", label: "System", icon: Globe, description: "Follows your OS" },
+] as const;
 
 export function SettingsView() {
   const { user, logout } = useAuth();
@@ -56,151 +72,194 @@ export function SettingsView() {
   };
 
   return (
-    <div className="space-y-6 p-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">Settings &amp; Preferences</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Appearance, backend API endpoints, and administrator profile.
-        </p>
-      </div>
+    <AdminFormPage>
+      <AdminFormHeader
+        title="Settings & Preferences"
+        description="Appearance, backend API connection, your administrator session and local data."
+      />
 
-      {/* Theme & Appearance Card */}
-      <Card className="shadow-xs border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Theme & Appearance</CardTitle>
-          <CardDescription className="text-xs">
-            Choose your preferred interface theme for the administration studio.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={() => setTheme("light")}
-              className={`flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all ${
-                theme === "light"
-                  ? "border-primary bg-primary/5 text-foreground font-semibold"
-                  : "border-border hover:border-foreground/40 text-muted-foreground"
-              }`}
+      <div className="grid w-full flex-1 gap-6 p-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+        {/* Section navigation */}
+        <nav
+          aria-label="Settings sections"
+          className="hidden lg:block lg:sticky lg:top-24 lg:self-start"
+        >
+          <ul className="space-y-1">
+            {SETTINGS_NAV.map((item) => (
+              <li key={item.id}>
+                <a
+                  href={`#${item.id}`}
+                  className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-6">
+          {/* Appearance */}
+          <AdminFormSection
+            id="settings-appearance"
+            icon={Palette}
+            title="Appearance"
+            description="Choose how the admin studio looks on this device."
+          >
+            <div
+              role="radiogroup"
+              aria-label="Theme"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-3"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white border shadow-xs text-zinc-900">
-                <Sun className="h-5 w-5" />
-              </div>
-              <span className="text-xs">Light</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTheme("dark")}
-              className={`flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all ${
-                theme === "dark"
-                  ? "border-primary bg-primary/5 text-foreground font-semibold"
-                  : "border-border hover:border-foreground/40 text-muted-foreground"
-              }`}
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-950 border border-zinc-800 shadow-xs text-zinc-100">
-                <Moon className="h-5 w-5" />
-              </div>
-              <span className="text-xs">Dark</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTheme("system")}
-              className={`flex flex-col items-center gap-2 rounded-lg border-2 p-3 text-center transition-all ${
-                theme === "system"
-                  ? "border-primary bg-primary/5 text-foreground font-semibold"
-                  : "border-border hover:border-foreground/40 text-muted-foreground"
-              }`}
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-to-r from-zinc-200 to-zinc-800 border shadow-xs text-foreground">
-                <Globe className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
-              </div>
-              <span className="text-xs">System</span>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Backend API Connection Card */}
-      <Card className="shadow-xs border">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">REST API Service</CardTitle>
-            <Badge variant="outline" className="text-xs font-mono">
-              Production API
-            </Badge>
-          </div>
-          <CardDescription className="text-xs">
-            Active backend service powering the circulars, store locations, and catalog products.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-xs">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border font-mono">
-            <span className="text-foreground font-semibold truncate pr-2">{API_BASE}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={checkConnection}
-              disabled={checking}
-              className="h-7 text-xs gap-1.5 shrink-0"
-            >
-              {checking ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-              Test Health Ping
-            </Button>
-          </div>
-
-          {latency !== null && (
-            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-emerald-800 dark:text-emerald-300">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Service Status: <strong>{healthStatus?.status || "OK"}</strong></span>
-              </div>
-              <span className="font-mono font-bold text-xs">{latency} ms</span>
+              {THEME_OPTIONS.map((opt) => {
+                const selected = theme === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setTheme(opt.value)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg border p-3 text-left transition-all",
+                      selected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "border-border hover:border-foreground/30 hover:bg-muted/40",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border shadow-xs",
+                        opt.value === "light" && "bg-white text-zinc-900",
+                        opt.value === "dark" && "border-zinc-800 bg-zinc-950 text-zinc-100",
+                        opt.value === "system" &&
+                          "bg-gradient-to-r from-zinc-200 to-zinc-800 text-foreground",
+                      )}
+                    >
+                      <opt.icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.description}</p>
+                    </div>
+                    {selected && <CheckCircle2 className="ml-auto h-4 w-4 shrink-0 text-primary" />}
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </AdminFormSection>
 
-      {/* Administrator Profile Card */}
-      <Card className="shadow-xs border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Administrator Profile</CardTitle>
-          <CardDescription className="text-xs">
-            Current active session authenticated for flyer publishing and catalog modifications.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-sm text-foreground">{user?.name || "Administrator"}</p>
-              <p className="text-muted-foreground">{user?.email}</p>
-              <Badge variant="secondary" className="mt-1 text-[10px]">
-                {user?.role || "Super Admin"}
+          {/* API service */}
+          <AdminFormSection
+            id="settings-api"
+            icon={Server}
+            title="REST API Service"
+            description="The backend that powers circulars, store locations and the product catalog."
+            action={
+              <Badge variant="outline" className="font-mono text-[10px]">
+                Production API
               </Badge>
+            }
+          >
+            <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Base URL</p>
+                <p className="truncate font-mono text-sm text-foreground">{API_BASE}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={checkConnection}
+                disabled={checking}
+                className="h-9 shrink-0 gap-1.5 text-xs"
+              >
+                {checking ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Test connection
+              </Button>
             </div>
-            <Button variant="destructive" size="sm" onClick={logout} className="gap-1.5 text-xs">
-              <LogOut className="h-3.5 w-3.5" />
-              Sign Out
-            </Button>
-          </div>
 
-          <Separator />
+            {latency !== null && (
+              <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span>
+                    Service status: <strong>{healthStatus?.status || "OK"}</strong>
+                  </span>
+                </div>
+                <span className="font-mono text-xs font-semibold">{latency} ms</span>
+              </div>
+            )}
+          </AdminFormSection>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-foreground">Clear Local Draft Storage</p>
-              <p className="text-muted-foreground text-[11px]">
-                Removes offline cached drafts from your browser storage.
-              </p>
+          {/* Account */}
+          <AdminFormSection
+            id="settings-account"
+            icon={KeyRound}
+            title="Administrator Account"
+            description="The session currently signed in to publish flyers and manage the catalog."
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                  {(user?.name || "Administrator").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {user?.name || "Administrator"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                  <Badge variant="secondary" className="mt-1 text-[10px]">
+                    {user?.role || "Super Admin"}
+                  </Badge>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={logout}
+                className="h-9 shrink-0 gap-1.5 text-xs"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </Button>
             </div>
-            <Button variant="outline" size="sm" onClick={handleClearCache} className="h-8 text-xs gap-1">
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-              Clear Drafts
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </AdminFormSection>
+
+          {/* Local data */}
+          <AdminFormSection
+            id="settings-data"
+            icon={Database}
+            title="Local Data"
+            description="Browser-side storage used for offline flyer drafts on this device."
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">Clear local draft storage</p>
+                <p className="text-xs text-muted-foreground">
+                  Removes cached flyer drafts from this browser. Published data is not affected.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearCache}
+                className="h-9 shrink-0 gap-1.5 text-xs"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                Clear drafts
+              </Button>
+            </div>
+          </AdminFormSection>
+        </div>
+      </div>
+    </AdminFormPage>
   );
 }

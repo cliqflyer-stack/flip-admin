@@ -32,8 +32,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectResult: (result: DealSearchResult) => void;
-  merchantId?: string;
-  storeLocationId?: string;
+  merchantId?: string | undefined;
+  storeLocationId?: string | undefined;
 }
 
 /**
@@ -49,11 +49,11 @@ export function FlyerBannerSnippet({
   className = "w-16 h-16 rounded-md",
 }: {
   flyerImageUrl: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  className?: string;
+  x?: number | undefined;
+  y?: number | undefined;
+  width?: number | undefined;
+  height?: number | undefined;
+  className?: string | undefined;
 }) {
   const safeW = Math.max(0.05, width);
   const safeH = Math.max(0.05, height);

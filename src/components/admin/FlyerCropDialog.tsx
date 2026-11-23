@@ -46,11 +46,22 @@ import {
   type FlyerSizePreset,
 } from "@/lib/flyer-sizing";
 
+/** Used only if the preset list is ever empty, so the crop math always has a size. */
+const FLYER_SIZE_PRESETS_FALLBACK: FlyerSizePreset = {
+  id: "9:16",
+  name: "Mobile Fullscreen",
+  ratioLabel: "9:16",
+  width: 1080,
+  height: 1920,
+  aspectRatio: Number((1920 / 1080).toFixed(4)),
+  description: "Full smartphone display canvas.",
+};
+
 interface FlyerCropDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   imageSource: string | File | null;
-  initialFilename?: string;
+  initialFilename?: string | undefined;
   onApplyCrop: (result: {
     file: File;
     previewUrl: string;
@@ -86,7 +97,7 @@ export function FlyerCropDialog({
   const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const activePreset: FlyerSizePreset =
-    FLYER_SIZE_PRESETS.find((p) => p.id === selectedPresetId) || FLYER_SIZE_PRESETS[0];
+    FLYER_SIZE_PRESETS.find((p) => p.id === selectedPresetId) ?? FLYER_SIZE_PRESETS[0] ?? FLYER_SIZE_PRESETS_FALLBACK;
 
   // Load image when dialog opens or imageSource changes
   useEffect(() => {
@@ -511,7 +522,7 @@ export function FlyerCropDialog({
                       min={1.0}
                       max={2.5}
                       step={0.05}
-                      onValueChange={([val]) => setZoom(val)}
+                      onValueChange={([val]) => setZoom(val ?? 1.0)}
                       className="py-1"
                     />
                   </div>

@@ -52,7 +52,7 @@ interface TemplatesViewProps {
   merchants: Merchant[];
   catalogProducts: ApiProduct[];
   onFlyerCreated: (flyer: ApiFlyer) => void;
-  currentFlyer?: ApiFlyer | null;
+  currentFlyer?: ApiFlyer | null | undefined;
 }
 
 export function TemplatesView({
@@ -122,7 +122,7 @@ export function TemplatesView({
             catalogProducts[idx % catalogProducts.length];
 
           return {
-            productId: matchedProd.id,
+            productId: matchedProd?.id ?? "",
             x: preset.x,
             y: preset.y,
             width: preset.width,

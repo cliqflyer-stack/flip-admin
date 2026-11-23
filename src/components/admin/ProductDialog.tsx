@@ -1,3 +1,4 @@
+import type { Patch } from "@/lib/utils";
 import React, { useState, useEffect, useRef } from "react";
 import { ImagePlus, Loader2, Package, Plus, Sparkles, Tag, Trash2, Upload, Check, Percent } from "lucide-react";
 import { toast } from "sonner";
@@ -40,13 +41,13 @@ import { ProductOptionsEditor } from "./ProductOptionsEditor";
 interface ProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  productToEdit?: ApiProduct | null;
+  productToEdit?: ApiProduct | null | undefined;
   merchants: Merchant[];
-  defaultMerchantId?: string;
+  defaultMerchantId?: string | undefined;
   /** When set (Flyer Studio), the product is saved to this flyer and the flyer picker is hidden. */
-  flyerId?: string | null;
+  flyerId?: string | null | undefined;
   /** Flyers to choose from when creating outside the studio (products are saved per flyer). */
-  flyers?: ApiFlyer[];
+  flyers?: ApiFlyer[] | undefined;
   onSave: (product: ApiProduct, isEdit: boolean) => void;
 }
 
@@ -91,7 +92,7 @@ export function ProductDialog({
   const [offerPrice, setOfferPrice] = useState("6.99");
   const [description, setDescription] = useState("");
   const [merchantId, setMerchantId] = useState(defaultMerchantId || merchants[0]?.id || "");
-  const [imageUrl, setImageUrl] = useState(PRODUCT_PRESET_IMAGES[0].url);
+  const [imageUrl, setImageUrl] = useState(PRODUCT_PRESET_IMAGES[0]?.url ?? "");
   const [dynamicCategories, setDynamicCategories] = useState<string[]>(CATEGORY_SUGGESTIONS);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -120,7 +121,7 @@ export function ProductDialog({
       setOfferPrice(String(productToEdit.offerPrice || "0.00"));
       setDescription(productToEdit.description || "");
       setMerchantId(productToEdit.merchantId || merchants[0]?.id || "");
-      setImageUrl(productToEdit.imageUrl || PRODUCT_PRESET_IMAGES[0].url);
+      setImageUrl(productToEdit.imageUrl || PRODUCT_PRESET_IMAGES[0]?.url || "");
       setImageTab(productToEdit.imageUrl?.startsWith("http") ? "url" : "preset");
     } else {
       setName("");
@@ -135,7 +136,7 @@ export function ProductDialog({
       setOfferPrice("6.99");
       setDescription("");
       setMerchantId(defaultMerchantId || merchants[0]?.id || "");
-      setImageUrl(PRODUCT_PRESET_IMAGES[0].url);
+      setImageUrl(PRODUCT_PRESET_IMAGES[0]?.url ?? "");
       setImageTab("preset");
     }
   }, [productToEdit, open, defaultMerchantId, merchants, flyerId]);
@@ -190,7 +191,7 @@ export function ProductDialog({
 
     setIsSubmitting(true);
     try {
-      const payload: Partial<ApiProduct> = {
+      const payload: Patch<ApiProduct> = {
         name: name.trim(),
         brand: brand.trim(),
         category: category.trim() || "General",
@@ -264,7 +265,7 @@ export function ProductDialog({
                     alt="Product Preview"
                     className="h-full w-full object-cover"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = PRODUCT_PRESET_IMAGES[0].url;
+                      (e.currentTarget as HTMLImageElement).src = PRODUCT_PRESET_IMAGES[0]?.url ?? "";
                     }}
                   />
                 ) : (

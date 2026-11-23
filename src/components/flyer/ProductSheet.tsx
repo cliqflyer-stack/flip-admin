@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Check, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,11 +18,15 @@ import { resolveImageUrl } from "@/lib/api-client";
 
 export interface ProductSheetProps {
   product: any | null;
-  open?: boolean;
+  open?: boolean | undefined;
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
   onAddToList?: (product: any) => void;
 }
+
+// Heights mirror the mobile app's ProductBottomSheet: a compact peek, then 75% of the screen.
+const COLLAPSED_HEIGHT = "h-[45vh]";
+const EXPANDED_HEIGHT = "h-[75vh]";
 
 /** Customer-facing bottom sheet with the tapped product's details. */
 export function ProductSheet({
@@ -32,9 +37,15 @@ export function ProductSheet({
   onAddToList,
 }: ProductSheetProps) {
   const [added, setAdded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const isControlled = open !== undefined;
   const isOpen = isControlled ? open : product !== null;
+
+  // Every newly opened product starts collapsed, like the mobile sheet.
+  useEffect(() => {
+    if (isOpen) setIsExpanded(false);
+  }, [product, isOpen]);
 
   // Vaul renders through a modal Radix Dialog, which sets body pointer-events to "none" while open
   // and blocks taps on the flyer behind the sheet. Keep the page interactive while the sheet is open.
@@ -76,6 +87,17 @@ export function ProductSheet({
 
   const imageUrl = resolveImageUrl(product?.imageUrl || product?.image);
 
+  // Extra details revealed when the sheet is expanded (SKU, UPC and product options).
+  const detailRows: { label: string; value: string }[] = [
+    ...(product?.sku ? [{ label: "SKU", value: String(product.sku) }] : []),
+    ...(product?.upc ? [{ label: "UPC", value: String(product.upc) }] : []),
+    ...(Array.isArray(product?.options)
+      ? product.options
+          .filter((o: { label?: string; value?: string }) => o.label && o.value)
+          .map((o: { label: string; value: string }) => ({ label: o.label, value: o.value }))
+      : []),
+  ];
+
   const handleAdd = () => {
     setAdded(true);
     if (onAddToList && product) {
@@ -94,12 +116,14 @@ export function ProductSheet({
         hideOverlay
         // Taps outside the sheet (e.g. another flyer item) must not dismiss it.
         onPointerDownOutside={(event) => event.preventDefault()}
-        className="mx-auto max-w-md bg-background/95 backdrop-blur-md border border-b-0 border-border/80 shadow-[0_-12px_36px_rgba(0,0,0,0.14)] rounded-t-2xl"
+        className={`mx-auto ${isExpanded ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT} max-w-md transition-[height] duration-300 ease-out bg-background/95 backdrop-blur-md border border-b-0 border-border/80 shadow-[0_-12px_36px_rgba(0,0,0,0.14)] rounded-t-2xl`}
       >
         <DrawerHeader className="text-left pb-2">
           <DrawerDescription asChild>
             <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <span>{product?.brand || "Brand"} · {product?.category || "General"}</span>
+              <span>
+                {product?.brand || "Brand"} · {product?.category || "General"}
+              </span>
               {discount > 0 && (
                 <Badge variant="destructive" className="text-[10px] h-5 px-1.5 font-bold">
                   {discount}% OFF
@@ -113,7 +137,7 @@ export function ProductSheet({
         </DrawerHeader>
 
         {product && (
-          <div className="space-y-4 px-4 pb-6">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-6">
             <div className="flex gap-4 items-center">
               <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/30">
                 {imageUrl ? (
@@ -144,12 +168,44 @@ export function ProductSheet({
                   )}
                 </div>
                 {product.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-3">
+                  <p
+                    className={`text-xs text-muted-foreground ${isExpanded ? "" : "line-clamp-2"}`}
+                  >
                     {product.description}
                   </p>
                 )}
               </div>
             </div>
+
+            {isExpanded && detailRows.length > 0 && (
+              <dl className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/30 p-3 text-xs">
+                {detailRows.map((row) => (
+                  <div key={`${row.label}-${row.value}`}>
+                    <dt className="text-muted-foreground">{row.label}</dt>
+                    <dd className="font-semibold text-foreground font-mono">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsExpanded((v) => !v)}
+              aria-expanded={isExpanded}
+              className="flex w-full items-center justify-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              {isExpanded ? (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  Show details
+                </>
+              )}
+            </button>
 
             <DrawerFooter className="px-0 pt-2 flex flex-row gap-2">
               <Button

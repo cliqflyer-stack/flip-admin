@@ -1,3 +1,4 @@
+import { applyPatch, type Patch } from "@/lib/utils";
 import React from "react";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -13,8 +14,8 @@ interface ProductOptionsEditorProps {
 
 /** Editable list of product options / variants, e.g. Size: 500 g, Flavour: Original. */
 export function ProductOptionsEditor({ value, onChange }: ProductOptionsEditorProps) {
-  const update = (idx: number, patch: Partial<ProductOption>) =>
-    onChange(value.map((o, i) => (i === idx ? { ...o, ...patch } : o)));
+  const update = (idx: number, patch: Patch<ProductOption>) =>
+    onChange(value.map((o, i) => (i === idx ? applyPatch(o, patch) : o)));
 
   return (
     <div className="rounded-lg border p-3 bg-muted/10 space-y-2">

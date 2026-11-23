@@ -21,7 +21,7 @@ export interface FlyerSizePreset {
   height: number;
   aspectRatio: number; // height / width
   description: string;
-  isRecommended?: boolean;
+  isRecommended?: boolean | undefined;
 }
 
 export const FLYER_SIZE_PRESETS: FlyerSizePreset[] = [
@@ -181,9 +181,9 @@ export type FlyerCropAlignment = "top" | "center" | "bottom";
 
 export interface FlyerRenderOptions {
   mode: FlyerCropMode;
-  targetWidth?: number;
-  targetHeight?: number;
-  alignment?: FlyerCropAlignment;
+  targetWidth?: number | undefined;
+  targetHeight?: number | undefined;
+  alignment?: FlyerCropAlignment | undefined;
   zoom?: number; // 1.0 to 3.0
   panOffset?: { x: number; y: number }; // normalized pan [-1, 1]
   backgroundColor?: string; // for fit mode, e.g. '#FFFFFF'

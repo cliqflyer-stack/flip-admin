@@ -1,3 +1,4 @@
+import type { Patch } from "@/lib/utils";
 import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
@@ -82,8 +83,8 @@ interface EditorViewProps {
   selectedFlyerId: string;
   onSelectFlyer: (id: string) => void;
   catalogProducts: ApiProduct[];
-  merchants?: Merchant[];
-  storeLocations?: StoreLocation[];
+  merchants?: Merchant[] | undefined;
+  storeLocations?: StoreLocation[] | undefined;
   onProductCreated?: (product: ApiProduct) => void;
   onProductUpdated?: (product: ApiProduct) => void;
   onProductDeleted?: (productId: string) => void;
@@ -91,7 +92,7 @@ interface EditorViewProps {
   selectedHotspotId: string | null;
   onSelectHotspot: (id: string | null) => void;
   onCreateHotspot: (rect: HotspotRect, productId?: string) => void;
-  onUpdateHotspot: (id: string, update: Partial<Hotspot>) => void;
+  onUpdateHotspot: (id: string, update: Patch<Hotspot>) => void;
   onDeleteHotspot: (id: string) => void;
   onSaveToDatabase: () => Promise<void>;
   isSaving: boolean;

@@ -78,8 +78,8 @@ export function RenderCategoryIcon({
   icon,
   className = "h-4 w-4",
 }: {
-  icon?: string | null;
-  className?: string;
+  icon?: string | null | undefined;
+  className?: string | undefined;
 }) {
   const IconComponent = (icon && CATEGORY_ICONS[icon]) || Tag;
   return <IconComponent className={className} />;
@@ -296,7 +296,7 @@ export function CategoriesManagerDialog({
               </Label>
               <div className="flex flex-wrap gap-1.5 p-2 rounded-md border bg-background">
                 {Object.keys(CATEGORY_ICONS).map((iconKey) => {
-                  const Icon = CATEGORY_ICONS[iconKey];
+                  const Icon = CATEGORY_ICONS[iconKey] ?? Tag;
                   const isSel = selectedIcon === iconKey;
                   return (
                     <button

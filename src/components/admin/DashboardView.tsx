@@ -32,12 +32,21 @@ import {
   type DashboardStats,
 } from "@/lib/api-client";
 import type { AdminView } from "./AdminSidebar";
+import { cn } from "@/lib/utils";
+
+/** Opaque fills so status badges stay readable over any flyer artwork. */
+const SOLID_BADGE_CLASS: Record<"default" | "secondary" | "destructive" | "outline", string> = {
+  default: "bg-primary text-primary-foreground border-transparent",
+  secondary: "bg-zinc-200 text-zinc-900 border-transparent dark:bg-zinc-300",
+  destructive: "bg-destructive text-white border-transparent",
+  outline: "bg-card text-foreground border-border",
+};
 
 interface DashboardViewProps {
   stats: DashboardStats | null;
   flyers: ApiFlyer[];
-  merchantsCount?: number;
-  storeLocationsCount?: number;
+  merchantsCount?: number | undefined;
+  storeLocationsCount?: number | undefined;
   loading: boolean;
   onSelectFlyerToEdit: (flyerId: string) => void;
   onOpenUpload: () => void;
@@ -268,26 +277,32 @@ export function DashboardView({
                       <img
                         src={resolveImageUrl(flyer.flyerImageUrl)}
                         alt={flyer.title}
-                        className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                        className="h-full w-full object-cover object-top transition-all duration-300 ease-out group-hover:scale-105 group-hover:brightness-110"
                       />
+                      {/* Soft gradient: darker at the bottom for contrast, lifts on hover */}
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-black/20 transition-opacity duration-300 group-hover:opacity-60" />
+
                       <div className="absolute top-2 left-2 flex items-center gap-1.5">
                         <Badge
                           variant={expiry.badgeVariant}
-                          className="text-[10px] uppercase font-bold tracking-wider shadow-xs"
+                          className={cn(
+                            "text-[10px] uppercase font-bold tracking-wider shadow-xs",
+                            SOLID_BADGE_CLASS[expiry.badgeVariant],
+                          )}
                         >
                           {expiry.badgeLabel}
                         </Badge>
                         {flyer.badgeText && (
                           <Badge
                             variant="outline"
-                            className="text-[10px] bg-background/90 backdrop-blur font-semibold"
+                            className="text-[10px] bg-white text-zinc-900 border-white font-semibold shadow-xs"
                           >
                             {flyer.badgeText}
                           </Badge>
                         )}
                       </div>
 
-                      <div className="absolute bottom-2 right-2 rounded-md bg-black/75 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur">
+                      <div className="absolute bottom-2 right-2 rounded-md bg-zinc-950 px-2 py-0.5 text-[10px] font-medium text-white shadow-xs">
                         {hotspotCount} hotspot{hotspotCount === 1 ? "" : "s"}
                       </div>
 

@@ -1,9 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, ChevronsUpDown, Loader2, Package, Tag, Upload } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  ImageIcon,
+  Loader2,
+  Package,
+  Store,
+  Tag,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,14 +45,24 @@ import {
   type Merchant,
   type ProductOption,
 } from "@/lib/api-client";
+import {
+  AdminFormBody,
+  AdminFormField,
+  AdminFormFooter,
+  AdminFormHeader,
+  AdminFormPage,
+  AdminFormSection,
+  adminInputClass,
+  adminSelectTriggerClass,
+} from "./AdminFormLayout";
 import { ProductOptionsEditor } from "./ProductOptionsEditor";
 import { cn } from "@/lib/utils";
 
 interface ProductFormScreenProps {
-  product?: ApiProduct | null;
+  product?: ApiProduct | null | undefined;
   merchants: Merchant[];
   /** Products are saved per flyer, so every product must be attached to one. */
-  flyers?: ApiFlyer[];
+  flyers?: ApiFlyer[] | undefined;
   onSave: (product: ApiProduct, isEdit: boolean) => void;
   onCancel: () => void;
 }
@@ -87,7 +105,7 @@ export function ProductFormScreen({
   const [offerPrice, setOfferPrice] = useState(product ? String(product.offerPrice) : "3.49");
   const [merchantId, setMerchantId] = useState(product?.merchantId || merchants[0]?.id || "");
   const [description, setDescription] = useState(product?.description || "");
-  const [imageUrl, setImageUrl] = useState(product?.imageUrl || PRODUCT_PRESET_IMAGES[0].url);
+  const [imageUrl, setImageUrl] = useState(product?.imageUrl || PRODUCT_PRESET_IMAGES[0]?.url || "");
 
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -176,88 +194,176 @@ export function ProductFormScreen({
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between border-b pb-4">
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onCancel}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {isEdit ? "Edit Product" : "Add Product"}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Configure product details, retail pricing, savings deals, and imagery for flyers and
-              mobile app.
-            </p>
-          </div>
-        </div>
-      </div>
+    <AdminFormPage>
+      <AdminFormHeader
+        title={isEdit ? "Edit Product" : "Add Product"}
+        description="Product details, retail pricing, deal discount and imagery for flyers and the mobile app."
+        onBack={onCancel}
+        badge={
+          isEdit ? (
+            <Badge variant="secondary" className="text-[10px]">
+              Editing
+            </Badge>
+          ) : undefined
+        }
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-        {/* Core Product Information */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">General Information</CardTitle>
-            <CardDescription className="text-xs">
-              Essential product details used in catalog search and flyer hotspots.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="prod-name" className="text-xs font-medium">
-                  Product Name <span className="text-destructive">*</span>
-                </Label>
+      <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
+        <AdminFormBody
+          aside={
+            <>
+              {/* Pricing & Deals */}
+              <AdminFormSection
+                icon={Tag}
+                title="Pricing & Deal"
+                description="The offer price is highlighted on flyer hotspots with an automatic discount badge."
+              >
+                <AdminFormField label="Regular Price" htmlFor="prod-reg-price" required>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      $
+                    </span>
+                    <Input
+                      id="prod-reg-price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="4.99"
+                      value={regularPrice}
+                      onChange={(e) => setRegularPrice(e.target.value)}
+                      required
+                      className={cn(adminInputClass, "pl-7 font-mono")}
+                    />
+                  </div>
+                </AdminFormField>
+
+                <AdminFormField label="Offer Price" htmlFor="prod-off-price" required>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-emerald-600">
+                      $
+                    </span>
+                    <Input
+                      id="prod-off-price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="3.49"
+                      value={offerPrice}
+                      onChange={(e) => setOfferPrice(e.target.value)}
+                      required
+                      className={cn(
+                        adminInputClass,
+                        "pl-7 font-mono font-semibold text-emerald-600",
+                      )}
+                    />
+                  </div>
+                </AdminFormField>
+
+                {hasDiscount ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+                    <span>
+                      Customer saves <strong>${savingsAmount}</strong>
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-emerald-600 text-xs font-bold text-white"
+                    >
+                      {savingsPct}% OFF
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                    Set an offer price below the regular price to show a savings badge.
+                  </p>
+                )}
+              </AdminFormSection>
+
+              {/* Assignment */}
+              <AdminFormSection
+                icon={Store}
+                title="Assignment"
+                description="Every product belongs to one flyer."
+              >
+                <AdminFormField label="Flyer" htmlFor="prod-flyer" required>
+                  <Select value={flyerId} onValueChange={setFlyerId}>
+                    <SelectTrigger id="prod-flyer" className={adminSelectTriggerClass}>
+                      <SelectValue placeholder="Select the flyer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {flyers.map((f) => (
+                        <SelectItem key={f.id} value={f.id} className="text-sm">
+                          {f.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </AdminFormField>
+
+                <AdminFormField label="Store / Franchise Brand" htmlFor="merchant-owner">
+                  <Select value={merchantId} onValueChange={setMerchantId}>
+                    <SelectTrigger id="merchant-owner" className={adminSelectTriggerClass}>
+                      <SelectValue placeholder="All brands (universal)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {merchants.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="text-sm">
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </AdminFormField>
+              </AdminFormSection>
+            </>
+          }
+        >
+          {/* General Information */}
+          <AdminFormSection
+            icon={Package}
+            title="General Information"
+            description="Used in catalog search, flyer hotspots and the product sheet."
+          >
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <AdminFormField label="Product Name" htmlFor="prod-name" required>
                 <Input
                   id="prod-name"
                   placeholder="e.g. Lay's Classic Potato Chips 220g"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="prod-brand" className="text-xs font-medium">
-                  Brand / Manufacturer
-                </Label>
+              <AdminFormField label="Brand / Manufacturer" htmlFor="prod-brand">
                 <Input
                   id="prod-brand"
                   placeholder="e.g. Lay's, Coca-Cola, Tide"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
-            </div>
+              </AdminFormField>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Category Searchable Combobox */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Category</Label>
+              <AdminFormField label="Category">
                 <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                   <PopoverTrigger asChild>
                     <Button
+                      type="button"
                       variant="outline"
                       role="combobox"
                       aria-expanded={categoryOpen}
-                      className="w-full justify-between h-9 text-xs"
+                      className="h-10 w-full justify-between px-3 text-sm font-normal"
                     >
-                      {category || "Select category..."}
+                      <span className={cn("truncate", !category && "text-muted-foreground")}>
+                        {category || "Select category…"}
+                      </span>
                       <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[240px] p-0" align="start">
+                  <PopoverContent className="w-[280px] p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search category..." className="h-9 text-xs" />
+                      <CommandInput placeholder="Search category..." className="h-9 text-sm" />
                       <CommandList>
                         <CommandEmpty>No category found.</CommandEmpty>
                         <CommandGroup>
@@ -269,7 +375,7 @@ export function ProductFormScreen({
                                 setCategory(cat);
                                 setCategoryOpen(false);
                               }}
-                              className="text-xs cursor-pointer flex items-center justify-between"
+                              className="flex cursor-pointer items-center justify-between text-sm"
                             >
                               <span>{cat}</span>
                               <Check
@@ -285,187 +391,70 @@ export function ProductFormScreen({
                     </Command>
                   </PopoverContent>
                 </Popover>
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="prod-unit" className="text-xs font-medium">
-                  Unit / Pack Size
-                </Label>
+              <AdminFormField label="Unit / Pack Size" htmlFor="prod-unit">
                 <Input
                   id="prod-unit"
                   placeholder="e.g. 220g, 1L, Each, 12-pack"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="text-xs h-9"
+                  className={adminInputClass}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="prod-sku" className="text-xs font-medium">
-                  SKU / Barcode
-                </Label>
+              <AdminFormField label="SKU" htmlFor="prod-sku" hint="Optional">
                 <Input
                   id="prod-sku"
                   placeholder="e.g. 06563345"
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
-                  className="text-xs h-9"
+                  className={cn(adminInputClass, "font-mono")}
                 />
-              </div>
+              </AdminFormField>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="prod-upc" className="text-xs font-medium">
-                  UPC
-                </Label>
+              <AdminFormField label="UPC / Barcode" htmlFor="prod-upc" hint="Optional">
                 <Input
                   id="prod-upc"
                   placeholder="e.g. 036000291452"
                   value={upc}
                   onChange={(e) => setUpc(e.target.value)}
-                  className="text-xs h-9"
+                  className={cn(adminInputClass, "font-mono")}
                 />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="prod-flyer" className="text-xs font-medium">
-                Flyer <span className="text-destructive">*</span>
-              </Label>
-              <Select value={flyerId} onValueChange={setFlyerId}>
-                <SelectTrigger id="prod-flyer" className="text-xs h-9">
-                  <SelectValue placeholder="Select the flyer this product belongs to" />
-                </SelectTrigger>
-                <SelectContent>
-                  {flyers.map((f) => (
-                    <SelectItem key={f.id} value={f.id} className="text-xs">
-                      {f.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              </AdminFormField>
             </div>
 
             <ProductOptionsEditor value={options} onChange={setOptions} />
+          </AdminFormSection>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="merchant-owner" className="text-xs font-medium">
-                Store / Franchise Brand
-              </Label>
-              <Select value={merchantId} onValueChange={setMerchantId}>
-                <SelectTrigger id="merchant-owner" className="text-xs h-9">
-                  <SelectValue placeholder="All Brands (Universal)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {merchants.map((m) => (
-                    <SelectItem key={m.id} value={m.id} className="text-xs">
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pricing & Deals Card */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Pricing & Deal Discounts</CardTitle>
-            <CardDescription className="text-xs">
-              Offer price is displayed prominently on flyer hotspots with automatic discount badges.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="prod-reg-price" className="text-xs font-medium">
-                  Regular Price ($) <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                  <Input
-                    id="prod-reg-price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="4.99"
-                    value={regularPrice}
-                    onChange={(e) => setRegularPrice(e.target.value)}
-                    required
-                    className="pl-7 text-xs h-9"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="prod-off-price" className="text-xs font-medium">
-                  Offer / Deal Price ($) <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground font-semibold text-emerald-600">
-                    $
-                  </span>
-                  <Input
-                    id="prod-off-price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="3.49"
-                    value={offerPrice}
-                    onChange={(e) => setOfferPrice(e.target.value)}
-                    required
-                    className="pl-7 text-xs h-9 font-semibold text-emerald-600"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {hasDiscount && (
-              <div className="p-3 rounded-lg border bg-emerald-500/10 border-emerald-500/20 flex items-center justify-between text-emerald-800 dark:text-emerald-300">
-                <span className="font-medium">
-                  Calculated Customer Savings: <strong>${savingsAmount}</strong>
-                </span>
-                <Badge variant="secondary" className="bg-emerald-600 text-white font-bold text-xs">
-                  {savingsPct}% OFF DEAL
-                </Badge>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Imagery & Product Thumbnail Card */}
-        <Card className="border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Product Imagery</CardTitle>
-            <CardDescription className="text-xs">
-              Select from high-resolution preset items, upload a custom image, or provide a URL.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Quick Preset Thumbnails */}
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold text-muted-foreground block">
-                Quick Retail Presets:
-              </span>
-              <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          {/* Imagery */}
+          <AdminFormSection
+            icon={ImageIcon}
+            title="Product Imagery & Details"
+            description="Pick a preset, upload your own image, or paste an image URL."
+          >
+            <div className="flex flex-col gap-3">
+              <Label className="text-sm font-medium">Retail presets</Label>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8">
                 {PRODUCT_PRESET_IMAGES.map((preset) => (
                   <button
                     key={preset.url}
                     type="button"
                     onClick={() => setImageUrl(preset.url)}
+                    title={preset.label}
                     className={cn(
-                      "flex flex-col items-center rounded-lg border p-1.5 transition-all text-center group",
+                      "group flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-all",
                       imageUrl === preset.url
-                        ? "border-primary ring-2 ring-primary/20 bg-primary/5"
-                        : "border-border hover:border-foreground/30 bg-muted/20",
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "border-border bg-muted/20 hover:border-foreground/30",
                     )}
                   >
                     <img
                       src={resolveImageUrl(preset.url)}
                       alt={preset.label}
-                      className="h-10 w-10 object-contain rounded"
+                      className="h-12 w-12 rounded object-contain"
                     />
-                    <span className="text-[10px] truncate max-w-full font-medium mt-1 text-muted-foreground group-hover:text-foreground">
+                    <span className="max-w-full truncate text-[11px] font-medium text-muted-foreground group-hover:text-foreground">
                       {preset.label}
                     </span>
                   </button>
@@ -473,26 +462,26 @@ export function ProductFormScreen({
               </div>
             </div>
 
-            {/* Custom URL or Upload */}
-            <div className="flex items-center gap-3 pt-2">
-              <div className="h-16 w-16 rounded-lg border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+            <div className="flex flex-col gap-4 rounded-lg border bg-muted/20 p-4 sm:flex-row sm:items-center">
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-background">
                 {imageUrl ? (
                   <img
                     src={resolveImageUrl(imageUrl)}
                     alt="Preview"
-                    className="h-full w-full object-contain p-1"
+                    className="h-full w-full object-contain p-2"
                   />
                 ) : (
-                  <span className="text-muted-foreground text-[10px]">No image</span>
+                  <span className="text-xs text-muted-foreground">No image</span>
                 )}
               </div>
 
-              <div className="flex-1 flex gap-2">
+              <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
                 <Input
-                  placeholder="https://... or upload custom image"
+                  id="prod-image"
+                  placeholder="https://… or upload an image"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  className="text-xs h-9"
+                  className={cn(adminInputClass, "flex-1")}
                 />
                 <Button
                   type="button"
@@ -500,7 +489,7 @@ export function ProductFormScreen({
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="h-9 text-xs gap-1.5 shrink-0"
+                  className="h-10 shrink-0 gap-1.5 text-xs"
                 >
                   {uploadingImage ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -519,30 +508,27 @@ export function ProductFormScreen({
               </div>
             </div>
 
-            <div className="space-y-1.5 pt-2">
-              <Label htmlFor="prod-desc" className="text-xs font-medium">
-                Product Description
-              </Label>
+            <AdminFormField label="Description" htmlFor="prod-desc" hint="Optional">
               <Textarea
                 id="prod-desc"
-                placeholder="Product description and highlights displayed in the shopper detail bottom sheet..."
+                placeholder="Highlights shown in the shopper's product detail sheet…"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="text-xs"
+                rows={4}
+                className="text-sm"
               />
-            </div>
-          </CardContent>
-        </Card>
+            </AdminFormField>
+          </AdminFormSection>
+        </AdminFormBody>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <AdminFormFooter>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="text-xs"
+            className="h-9 px-4 text-xs"
           >
             Cancel
           </Button>
@@ -550,7 +536,7 @@ export function ProductFormScreen({
             type="submit"
             size="sm"
             disabled={isSubmitting}
-            className="text-xs font-semibold gap-1.5"
+            className="h-9 gap-1.5 px-5 text-xs font-semibold shadow-xs"
           >
             {isSubmitting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -559,8 +545,8 @@ export function ProductFormScreen({
             )}
             {isSubmitting ? "Saving Product..." : isEdit ? "Update Product" : "Create Product"}
           </Button>
-        </div>
+        </AdminFormFooter>
       </form>
-    </div>
+    </AdminFormPage>
   );
 }
