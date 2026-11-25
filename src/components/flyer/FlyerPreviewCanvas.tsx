@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Konva from "konva";
-import { Group, Image as KonvaImage, Layer, Rect, Shape, Stage } from "react-konva";
+import { Image as KonvaImage, Layer, Rect, Shape, Stage } from "react-konva";
 import { Minus, Maximize, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import highlightRingUrl from "@/assets/highlight-ring.png";
 
 import type { Hotspot } from "@/lib/flyer-storage";
 import { useHtmlImage } from "@/hooks/use-html-image";
+import {
+  ART_HEIGHT,
+  ART_WIDTH,
+  buildRingStroke,
+  paintRingProgress,
+  type RingStroke,
+} from "./highlight-ring";
 
 interface FlyerPreviewCanvasProps {
   imageUrl: string;
@@ -36,172 +44,116 @@ const HIT_FILL = "rgba(255,255,255,0.001)";
 // Approximate share of the viewport the bottom sheet covers when open.
 const SHEET_VIEWPORT_SHARE = 0.45;
 
-// Brand "parrot" green: Electric Volt Lime (--color-brand-lime) from the admin theme.
-const PEN_INK = "#D8F36A";
-const PEN_DRAW_MS = 480;
+// Width / height of the highlight artwork. Never stretch it: the shape must stay exact.
+const RING_ASPECT = ART_WIDTH / ART_HEIGHT;
+const PEN_DRAW_MS = 250;
 
-interface PenPoint {
-  x: number;
-  y: number;
-  pressure: number; // 0..1, scales the nib width along the stroke
-}
+const ringStrokeCache = new WeakMap<HTMLImageElement, RingStroke | null>();
 
-/**
- * Generates a hand-drawn marker loop around a deal, as a pen would draw it:
- * - Starts at the lower-left with a thin pen-down tail
- * - Sweeps ~370 degrees counter-clockwise with light hand wobble
- * - Firm body through the sides, lifts off with a thin rounded finish just inside the start
- */
-function createPenRingPoints(rx: number, ry: number): PenPoint[] {
-  const points: PenPoint[] = [];
-  const numSteps = 120;
-  // Reference shape: starts at the lower-left tail, sweeps counter-clockwise around the deal,
-  // and finishes just short of the start, tucked slightly inside it
-  const startAngle = 2.37; // ~lower-left
-  const totalAngle = -(Math.PI * 2 + 0.5); // ~370 degrees, negative = counter-clockwise on screen
+/** Reads the artwork's pixels once per image; null if the browser refuses a 2D canvas. */
+function getRingStroke(ringImage: HTMLImageElement): RingStroke | null {
+  const cached = ringStrokeCache.get(ringImage);
+  if (cached !== undefined) return cached;
 
-  for (let i = 0; i <= numSteps; i++) {
-    const t = i / numSteps;
-    const angle = startAngle + t * totalAngle;
-
-    // Light hand wobble only, so the loop reads as round rather than lumpy
-    const wobble1 = Math.sin(angle * 2.5) * 0.012;
-    const wobble2 = Math.cos(angle * 4.2) * 0.006;
-    const wobble3 = Math.sin(angle * 7.1) * 0.003;
-    const totalWobble = wobble1 + wobble2 + wobble3;
-
-    // Finishing tail tucks slightly inside the start so the two ends read as separate strokes
-    const tailProgress = Math.max(0, (t - 0.85) / 0.15);
-    const tailTuck = 1 - tailProgress * 0.08;
-
-    const curRx = rx * (1 + totalWobble) * tailTuck;
-    const curRy = ry * (1 + totalWobble * 0.85) * tailTuck;
-
-    // Pen pressure: light pen-down tail, full body through the sides, thin rounded finish
-    const pressureIn = 0.3 + 0.7 * Math.min(1, t / 0.12);
-    const pressureOut = t > 0.85 ? Math.max(0.2, (1 - t) / 0.15) : 1;
-    const jitter = 0.9 + 0.1 * Math.sin(angle * 5.3 + 1.2);
-
-    points.push({
-      x: Math.cos(angle) * curRx,
-      y: Math.sin(angle) * curRy,
-      pressure: pressureIn * pressureOut * jitter,
-    });
+  const canvas = document.createElement("canvas");
+  canvas.width = ART_WIDTH;
+  canvas.height = ART_HEIGHT;
+  const ctx = canvas.getContext("2d");
+  let stroke: RingStroke | null = null;
+  if (ctx) {
+    ctx.drawImage(ringImage, 0, 0, ART_WIDTH, ART_HEIGHT);
+    stroke = buildRingStroke(ctx.getImageData(0, 0, ART_WIDTH, ART_HEIGHT).data);
   }
-  return points;
+  ringStrokeCache.set(ringImage, stroke);
+  return stroke;
 }
 
-/**
- * Paints the first `progress` (0..1) of the pen loop onto the canvas.
- * Ink is drawn segment by segment so the nib width follows the pressure curve.
- */
-function drawPenStroke(
-  ctx: Konva.Context,
-  points: PenPoint[],
+/** Paints the first `progress` (0..1) of the pen stroke onto `buffer` and returns it. */
+function revealRing(
+  buffer: HTMLCanvasElement,
+  stroke: RingStroke,
   progress: number,
-  baseWidth: number,
-) {
-  if (points.length < 2 || progress <= 0) return;
-  const last = Math.min(points.length - 1, Math.max(1, Math.floor((points.length - 1) * progress)));
+): HTMLCanvasElement {
+  const ctx = buffer.getContext("2d");
+  if (!ctx) return buffer;
+  if (buffer.width !== ART_WIDTH) buffer.width = ART_WIDTH;
+  if (buffer.height !== ART_HEIGHT) buffer.height = ART_HEIGHT;
 
-  const drawn = points.slice(0, last + 1);
-  const start = drawn[0];
-  if (!start) return;
-
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  // Ink: variable-width nib stroke, fully opaque
-  ctx.strokeStyle = PEN_INK;
-  for (let i = 1; i < drawn.length; i++) {
-    const a = drawn[i - 1];
-    const b = drawn[i];
-    if (!a || !b) continue;
-    ctx.lineWidth = Math.max(1, baseWidth * (a.pressure + b.pressure) * 0.5);
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-  }
+  const frame = ctx.createImageData(ART_WIDTH, ART_HEIGHT);
+  paintRingProgress(stroke, progress, frame.data);
+  ctx.putImageData(frame, 0, 0);
+  return buffer;
 }
 
 interface PenMarkProps {
   hotspot: Hotspot;
+  ringImage: HTMLImageElement;
   stageWidth: number;
   stageHeight: number;
-  /** Only the mark that was just tapped draws itself; the others are already inked. */
+  /** Only the mark that was just tapped draws itself; the others are already drawn. */
   animate: boolean;
 }
 
-/** A hand-drawn ring around one hotspot. It stays on the flyer until the user taps empty space. */
-function PenMark({ hotspot, stageWidth, stageHeight, animate }: PenMarkProps) {
-  const groupRef = useRef<Konva.Group>(null);
+/** The hand-drawn ring around one hotspot. It stays on the flyer until the user clears it. */
+function PenMark({ hotspot, ringImage, stageWidth, stageHeight, animate }: PenMarkProps) {
   const shapeRef = useRef<Konva.Shape>(null);
   const progressRef = useRef(animate ? 0 : 1);
+  const buffer = useMemo(() => document.createElement("canvas"), []);
+  const stroke = useMemo(() => getRingStroke(ringImage), [ringImage]);
 
   const hsWidth = hotspot.width * stageWidth;
   const hsHeight = hotspot.height * stageHeight;
-  const centerX = (hotspot.x + hotspot.width / 2) * stageWidth;
-  const centerY = (hotspot.y + hotspot.height / 2) * stageHeight;
 
-  // Responsive radii with comfortable padding around the deal
-  const rawRx = Math.max((hsWidth / 2) * 1.22, 28);
-  const rawRy = Math.max((hsHeight / 2) * 1.2, 28);
-  // Balance aspect ratio so it remains an organic oval rather than an extreme sliver
-  const ringRx = Math.max(rawRx, rawRy * 0.55);
-  const ringRy = Math.max(rawRy, rawRx * 0.55);
+  // Size the ring around the product without distorting it, and keep it inside the flyer
+  const width = Math.min(
+    Math.max(56, hsWidth * 1.3, hsHeight * 1.3 * RING_ASPECT),
+    stageWidth,
+    stageHeight * RING_ASPECT,
+  );
+  const height = width / RING_ASPECT;
+  const clamp = (value: number, max: number) => Math.max(0, Math.min(max, value));
+  const left = clamp((hotspot.x + hotspot.width / 2) * stageWidth - width / 2, stageWidth - width);
+  const top = clamp(
+    (hotspot.y + hotspot.height / 2) * stageHeight - height / 2,
+    stageHeight - height,
+  );
 
-  const penPoints = useMemo(() => createPenRingPoints(ringRx, ringRy), [ringRx, ringRy]);
-  // Nib width scales with the stage so the ink stays proportional on phones and desktops
-  const penWidth = Math.max(5.5, Math.min(8, stageWidth / 65));
-
-  // Pen-drawing animation: the nib traces the loop once, then the ink stays put.
-  // Runs only on mount, so a later tap elsewhere does not cut this stroke short.
+  // Pen-drawing animation. Runs only on mount, so a later tap elsewhere does not restart it.
   useEffect(() => {
-    const group = groupRef.current;
-    const shape = shapeRef.current;
-    if (!animate || !group || !shape) return;
-
+    if (!animate) return;
     progressRef.current = 0;
-    group.opacity(0);
+    let frame = 0;
+    let startTime: number | null = null;
 
-    const fadeIn = new Konva.Tween({
-      node: group,
-      opacity: 1,
-      duration: 0.16,
-      easing: Konva.Easings.EaseOut,
-    });
-    fadeIn.play();
-
-    const startTime = performance.now();
-    let raf = 0;
-
-    const animateStroke = (now: number) => {
-      const raw = Math.min(1, (now - startTime) / PEN_DRAW_MS);
-      // Quick start, slower finish as the pen closes the loop
-      progressRef.current = 1 - Math.pow(1 - raw, 2.2);
-      shape.getLayer()?.batchDraw();
-
-      if (raw < 1) raf = requestAnimationFrame(animateStroke);
+    const step = (now: number) => {
+      startTime ??= now;
+      const t = Math.min(1, (now - startTime) / PEN_DRAW_MS);
+      // Ease in and out, like a pen setting off and slowing as it closes the loop
+      progressRef.current = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      shapeRef.current?.getLayer()?.batchDraw();
+      if (t < 1) frame = requestAnimationFrame(step);
     };
 
-    raf = requestAnimationFrame(animateStroke);
-
-    return () => {
-      fadeIn.destroy();
-      cancelAnimationFrame(raf);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only, see above
   }, []);
 
   return (
-    <Group ref={groupRef} x={centerX} y={centerY} listening={false}>
-      <Shape
-        ref={shapeRef}
-        listening={false}
-        sceneFunc={(ctx) => drawPenStroke(ctx, penPoints, progressRef.current, penWidth)}
-      />
-    </Group>
+    <Shape
+      ref={shapeRef}
+      x={left}
+      y={top}
+      listening={false}
+      sceneFunc={(ctx) => {
+        // A finished ring is the artwork itself, with no per-pixel work
+        const source =
+          progressRef.current >= 1 || !stroke
+            ? ringImage
+            : revealRing(buffer, stroke, progressRef.current);
+        ctx.drawImage(source, 0, 0, width, height);
+      }}
+    />
   );
 }
 
@@ -227,6 +179,7 @@ export default function FlyerPreviewCanvas({
   const [containerWidth, setContainerWidth] = useState(0);
   const [view, setView] = useState<ViewState>({ scale: 1, x: 0, y: 0 });
   const image = useHtmlImage(imageUrl);
+  const ringImage = useHtmlImage(highlightRingUrl);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -262,8 +215,7 @@ export default function FlyerPreviewCanvas({
     setView((current) => {
       const nextScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, current.scale * factor));
       if (nextScale === current.scale) return current;
-      const anchor =
-        point ?? { x: stageWidth / 2, y: stageHeight / 2 };
+      const anchor = point ?? { x: stageWidth / 2, y: stageHeight / 2 };
       const contentX = (anchor.x - current.x) / current.scale;
       const contentY = (anchor.y - current.y) / current.scale;
       return clampView({
@@ -383,15 +335,17 @@ export default function FlyerPreviewCanvas({
                 }}
               />
             ))}
-            {markedHotspots.map((hotspot) => (
-              <PenMark
-                key={hotspot.id}
-                hotspot={hotspot}
-                stageWidth={stageWidth}
-                stageHeight={stageHeight}
-                animate={hotspot.id === selectedHotspotId}
-              />
-            ))}
+            {ringImage &&
+              markedHotspots.map((hotspot) => (
+                <PenMark
+                  key={hotspot.id}
+                  hotspot={hotspot}
+                  ringImage={ringImage}
+                  stageWidth={stageWidth}
+                  stageHeight={stageHeight}
+                  animate={hotspot.id === selectedHotspotId}
+                />
+              ))}
           </Layer>
         </Stage>
       )}
