@@ -355,34 +355,37 @@ export default function FlyerPreviewCanvas({
           Clear marks
         </Button>
       )}
-      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 rounded-lg border bg-background/90 p-1 shadow-sm backdrop-blur">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          aria-label="Zoom in"
-          onClick={() => zoomAtPoint(null, 1.3)}
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          aria-label="Zoom out"
-          onClick={() => zoomAtPoint(null, 1 / 1.3)}
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          aria-label="Reset zoom"
-          onClick={() => setView({ scale: 1, x: 0, y: 0 })}
-        >
-          <Maximize className="h-4 w-4" />
-        </Button>
+      {/* Sticky so the zoom buttons stay on screen while the flyer scrolls behind them */}
+      <div className="pointer-events-none sticky bottom-3 z-10 flex justify-end px-3 pt-3">
+        <div className="pointer-events-auto flex flex-col gap-1.5 rounded-lg border bg-background/90 p-1 shadow-sm backdrop-blur">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Zoom in"
+            onClick={() => zoomAtPoint(null, 1.3)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Zoom out"
+            onClick={() => zoomAtPoint(null, 1 / 1.3)}
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Reset zoom"
+            onClick={() => setView({ scale: 1, x: 0, y: 0 })}
+          >
+            <Maximize className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
