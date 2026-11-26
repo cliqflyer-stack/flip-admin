@@ -45,7 +45,6 @@ const HIT_FILL = "rgba(255,255,255,0.001)";
 const SHEET_VIEWPORT_SHARE = 0.45;
 
 // Width / height of the highlight artwork. Never stretch it: the shape must stay exact.
-const RING_ASPECT = ART_WIDTH / ART_HEIGHT;
 const PEN_DRAW_MS = 250;
 
 const ringStrokeCache = new WeakMap<HTMLImageElement, RingStroke | null>();
@@ -104,13 +103,9 @@ function PenMark({ hotspot, ringImage, stageWidth, stageHeight, animate }: PenMa
   const hsWidth = hotspot.width * stageWidth;
   const hsHeight = hotspot.height * stageHeight;
 
-  // Size the ring around the product without distorting it, and keep it inside the flyer
-  const width = Math.min(
-    Math.max(56, hsWidth * 1.3, hsHeight * 1.3 * RING_ASPECT),
-    stageWidth,
-    stageHeight * RING_ASPECT,
-  );
-  const height = width / RING_ASPECT;
+  // The ring follows the hotspot's own shape: wide hotspots get a wide ring, tall ones a tall ring
+  const width = Math.min(Math.max(56, hsWidth * 1.3), stageWidth);
+  const height = Math.min(Math.max(56, hsHeight * 1.3), stageHeight);
   const clamp = (value: number, max: number) => Math.max(0, Math.min(max, value));
   const left = clamp((hotspot.x + hotspot.width / 2) * stageWidth - width / 2, stageWidth - width);
   const top = clamp(
