@@ -9,6 +9,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
   deleteFlyer,
   fetchFlyers,
+  fetchFlyerById,
   fetchMerchants,
   fetchProducts,
   fetchStats,
@@ -393,6 +394,30 @@ function AdminContent() {
     }
   };
 
+  // The server wrote products and hotspots; reload them so a later save keeps them.
+  const handleExtractionApplied = async (flyerId: string) => {
+    const [flyer, scoped, all] = await Promise.all([
+      fetchFlyerById(flyerId),
+      fetchProducts(undefined, flyerId),
+      fetchProducts(),
+    ]);
+    setFlyersList((prev) => prev.map((f) => (f.id === flyerId ? flyer : f)));
+    setFlyerProducts(scoped);
+    setCatalogProducts(all);
+    setHotspots(
+      (flyer.hotspots ?? []).map((h) => ({
+        id: h.id,
+        productId: h.productId,
+        x: h.x,
+        y: h.y,
+        width: h.width,
+        height: h.height,
+        priceOverride: h.priceOverride,
+        titleOverride: h.titleOverride,
+      })),
+    );
+  };
+
   // Delete Flyer
   const handleDeleteFlyer = async (id: string) => {
     if (!confirm("Are you sure you want to delete this circular?")) return;
@@ -547,6 +572,7 @@ function AdminContent() {
               onDeleteHotspot={handleDeleteHotspot}
               onSaveToDatabase={handleSaveToDatabase}
               isSaving={isSaving}
+              onExtractionApplied={handleExtractionApplied}
               onOpenUpload={() => handleSelectView("upload-flyer")}
               imageUrl={imageUrl}
               imgSize={imgSize}

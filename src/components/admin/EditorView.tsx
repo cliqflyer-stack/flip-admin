@@ -72,6 +72,7 @@ import { ProductDialog } from "./ProductDialog";
 import { FlyerExpiryDialog } from "./FlyerExpiryDialog";
 import { FlyerCropDialog } from "./FlyerCropDialog";
 import { AutoDetectHotspotsDialog } from "./AutoDetectHotspotsDialog";
+import { hasUnsavedHotspots } from "@/lib/hotspot-changes";
 import { DealSearchDialog, FlyerBannerSnippet } from "./DealSearchDialog";
 import type { Hotspot, HotspotRect } from "@/lib/flyer-storage";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,7 @@ interface EditorViewProps {
   imageUrl: string;
   imgSize: { width: number; height: number };
   onFlyerUpdated?: (flyer: ApiFlyer) => void;
+  onExtractionApplied: (flyerId: string) => Promise<void>;
 }
 
 export function EditorView({
@@ -124,6 +126,7 @@ export function EditorView({
   imageUrl,
   imgSize,
   onFlyerUpdated,
+  onExtractionApplied,
 }: EditorViewProps) {
   // Navigation states within Studio
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -500,10 +503,10 @@ export function EditorView({
             size="sm"
             onClick={() => setAutoDetectOpen(true)}
             className="h-8 gap-1.5 text-xs font-semibold border-primary/40 text-primary bg-primary/5 hover:bg-primary/10"
-            title="Automatically detect circular product areas, prices & photos with AI & OCR"
+            title="Read deals, prices and areas from the flyer"
           >
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span className="hidden sm:inline">AI Auto-Detect</span>
+            <span className="hidden sm:inline">Auto-Detect</span>
           </Button>
 
           <Button
@@ -1176,21 +1179,16 @@ export function EditorView({
         />
       )}
 
-      {/* AI & OCR Hotspots Auto-Detection Dialog */}
+      {/* Flyer reading: review extracted deals */}
       {currentFlyer && (
         <AutoDetectHotspotsDialog
+          key={currentFlyer.id}
           open={autoDetectOpen}
           onOpenChange={setAutoDetectOpen}
           flyer={currentFlyer}
           catalogProducts={catalogProducts}
-          onApplyHotspots={(detectedList) => {
-            for (const d of detectedList) {
-              onCreateHotspot(
-                { x: d.x, y: d.y, width: d.width, height: d.height },
-                d.productId
-              );
-            }
-          }}
+          hasUnsavedChanges={hasUnsavedHotspots(hotspots, currentFlyer.hotspots)}
+          onApplied={() => onExtractionApplied(currentFlyer.id)}
         />
       )}
 

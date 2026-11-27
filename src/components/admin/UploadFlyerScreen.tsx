@@ -33,7 +33,10 @@ import {
 import {
   createFlyer,
   uploadImage,
-  autoDetectFlyerHotspots,
+  fetchFlyerById,
+  isExtractionRunning,
+  startFlyerExtraction,
+  waitForExtraction,
   toEndOfDayIso,
   toStartOfDayIso,
   getRelativeDateString,
@@ -252,25 +255,35 @@ export function UploadFlyerScreen({
 
       toast.success(`"${created.title}" published! Opening in Interactive Studio...`);
 
+      let opened = created;
       if (autoDetectOnUpload) {
-        toast.info("Analyzing circular with AI & OCR to detect deals and map areas...");
+        const progress = toast.loading("Reading deals and prices from the flyer...");
         try {
-          const autoRes = await autoDetectFlyerHotspots({
-            flyerId: created.id,
-            createMissingProducts: true,
-            applyImmediately: true,
-          });
-          if (autoRes.count > 0) {
+          await startFlyerExtraction(created.id, true);
+          const job = await waitForExtraction(created.id);
+          if (job?.status === "failed") {
+            toast.error(`Could not read the flyer: ${job.errorMessage}`, { id: progress });
+          } else if (isExtractionRunning(job)) {
+            toast.info("Still reading. Open Auto-Detect in the studio to see the results.", {
+              id: progress,
+            });
+          } else {
+            const items = job?.items ?? [];
+            const pending = items.filter((item) => !item.applied).length;
             toast.success(
-              `✨ Auto-detected and mapped ${autoRes.count} product deals with cropped thumbnails!`,
+              `Found ${items.length} deals: ${items.length - pending} mapped, ${pending} to review.`,
+              { id: progress },
             );
+            // Auto-applied hotspots must be in the studio before anyone saves over them.
+            opened = await fetchFlyerById(created.id);
           }
-        } catch (e: any) {
-          console.warn("Auto-detection post-upload failed:", e);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Unknown error";
+          toast.error(`Flyer published, but it could not be read: ${message}`, { id: progress });
         }
       }
 
-      onFlyerCreated(created);
+      onFlyerCreated(opened);
     } catch (err: any) {
       toast.error(`Flyer upload failed: ${err.message}`);
     } finally {
@@ -810,7 +823,7 @@ export function UploadFlyerScreen({
               className="flex cursor-pointer items-center gap-1.5 font-medium"
             >
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span>Auto-detect deals, prices &amp; areas with AI &amp; OCR</span>
+              <span>Auto-detect deals, prices &amp; areas</span>
             </Label>
           </div>
           <Button

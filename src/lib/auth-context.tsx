@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { fetchCurrentUser, loginUser } from "./api-client";
+import { toast } from "sonner";
+import { fetchCurrentUser, loginUser, TOKEN_KEY, UNAUTHORIZED_EVENT } from "./api-client";
 
 export interface AdminUser {
   email: string;
@@ -17,7 +18,6 @@ interface AuthContextType {
 }
 
 const STORAGE_KEY = "flip_admin_session";
-const TOKEN_KEY = "flip_admin_token";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -62,6 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
+  }, []);
+
+  useEffect(() => {
+    const onUnauthorized = () => {
+      logout();
+      // A fixed id keeps parallel failed requests from stacking toasts.
+      toast.error("Your session has expired. Please sign in again.", { id: "session-expired" });
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {

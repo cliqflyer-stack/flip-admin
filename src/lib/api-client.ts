@@ -7,6 +7,20 @@ import type { Patch } from "@/lib/utils";
 
 export const API_BASE = import.meta.env["VITE_API_URL"] || "https://flip-api-kdfp.onrender.com";
 
+export const TOKEN_KEY = "flip_admin_token";
+/** Fired when the API rejects the stored session, so the app can sign the user out. */
+export const UNAUTHORIZED_EVENT = "flip:unauthorized";
+
+/** `fetch` for admin-only endpoints: attaches the session token. */
+async function adminFetch(url: string, init: RequestInit): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(url, { ...init, headers });
+  if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  return res;
+}
+
 export interface StoreLocation {
   id: string;
   merchantId: string;
@@ -154,7 +168,7 @@ export async function fetchFlyerById(id: string): Promise<ApiFlyer> {
 }
 
 export async function createFlyer(data: Patch<ApiFlyer>): Promise<ApiFlyer> {
-  const res = await fetch(`${API_BASE}/api/v1/flyers`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/flyers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -164,7 +178,7 @@ export async function createFlyer(data: Patch<ApiFlyer>): Promise<ApiFlyer> {
 }
 
 export async function updateFlyer(id: string, data: Patch<ApiFlyer>): Promise<ApiFlyer> {
-  const res = await fetch(`${API_BASE}/api/v1/flyers/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/flyers/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -174,7 +188,7 @@ export async function updateFlyer(id: string, data: Patch<ApiFlyer>): Promise<Ap
 }
 
 export async function deleteFlyer(id: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/api/v1/flyers/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/flyers/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete flyer");
@@ -192,7 +206,7 @@ export async function saveHotspotsBatch(
     height: number;
   }>,
 ): Promise<{ success: boolean; count: number; hotspots: ApiHotspot[] }> {
-  const res = await fetch(`${API_BASE}/api/v1/flyers/${flyerId}/hotspots/batch`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/flyers/${flyerId}/hotspots/batch`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ hotspots }),
@@ -211,7 +225,7 @@ export async function fetchProducts(query?: string, flyerId?: string): Promise<A
 }
 
 export async function createProduct(data: Patch<ApiProduct>): Promise<ApiProduct> {
-  const res = await fetch(`${API_BASE}/api/v1/products`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/products`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -221,7 +235,7 @@ export async function createProduct(data: Patch<ApiProduct>): Promise<ApiProduct
 }
 
 export async function updateProduct(id: string, data: Patch<ApiProduct>): Promise<ApiProduct> {
-  const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/products/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -231,7 +245,7 @@ export async function updateProduct(id: string, data: Patch<ApiProduct>): Promis
 }
 
 export async function deleteProduct(id: string): Promise<{ success: boolean; deletedId: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/products/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/products/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete product");
@@ -261,7 +275,7 @@ export async function createMerchant(data: Patch<Merchant>): Promise<Merchant> {
     logoBg: data.logoBg || "#075E50",
     logoColor: data.logoColor || "#FFFFFF",
   };
-  const res = await fetch(`${API_BASE}/api/v1/merchants`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/merchants`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -278,7 +292,7 @@ export async function updateMerchant(id: string, data: Patch<Merchant>): Promise
   if (data.name) payload.name = data.name.trim();
   if (data.slug) payload.slug = data.slug.trim();
   if (data.initial) payload.initial = data.initial.trim();
-  const res = await fetch(`${API_BASE}/api/v1/merchants/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/merchants/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -291,7 +305,7 @@ export async function updateMerchant(id: string, data: Patch<Merchant>): Promise
 }
 
 export async function deleteMerchant(id: string): Promise<{ success: boolean; deletedId: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/merchants/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/merchants/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) {
@@ -333,7 +347,7 @@ export async function createCategory(data: Patch<Category>): Promise<Category> {
       .replace(/(^_|_$)/g, "") ||
     `cat_${Date.now().toString(36)}`;
 
-  const res = await fetch(`${API_BASE}/api/v1/categories`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -352,7 +366,7 @@ export async function createCategory(data: Patch<Category>): Promise<Category> {
 }
 
 export async function updateCategory(id: string, data: Patch<Category>): Promise<Category> {
-  const res = await fetch(`${API_BASE}/api/v1/categories/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/categories/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -365,7 +379,7 @@ export async function updateCategory(id: string, data: Patch<Category>): Promise
 }
 
 export async function deleteCategory(id: string): Promise<{ success: boolean; deletedId: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/categories/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/categories/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) {
@@ -384,7 +398,7 @@ export async function fetchStoreLocations(merchantId?: string): Promise<StoreLoc
 }
 
 export async function createStoreLocation(data: Patch<StoreLocation>): Promise<StoreLocation> {
-  const res = await fetch(`${API_BASE}/api/v1/store-locations`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/store-locations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -397,7 +411,7 @@ export async function updateStoreLocation(
   id: string,
   data: Patch<StoreLocation>,
 ): Promise<StoreLocation> {
-  const res = await fetch(`${API_BASE}/api/v1/store-locations/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/store-locations/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -407,7 +421,7 @@ export async function updateStoreLocation(
 }
 
 export async function deleteStoreLocation(id: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/api/v1/store-locations/${id}`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/store-locations/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete store location");
@@ -417,7 +431,7 @@ export async function deleteStoreLocation(id: string): Promise<{ success: boolea
 export async function uploadImage(file: File): Promise<{ success: boolean; url: string }> {
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch(`${API_BASE}/api/v1/upload`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/upload`, {
     method: "POST",
     body: formData,
   });
@@ -716,53 +730,108 @@ export interface DealSearchResult {
   priceOverride?: string | null | undefined;
 }
 
-export interface AutoDetectedItem {
-  tempId: string;
+export type ExtractionFlag =
+  | "NO_NAME"
+  | "AMBIGUOUS_PRICE"
+  | "MULTI_BUY"
+  | "PRICE_MISMATCH"
+  | "SEVERAL_PRICES"
+  | "LOW_OCR_CONFIDENCE"
+  | "AI_READ";
+
+export interface ExtractedItem {
+  id: string;
   name: string;
   brand: string;
   description: string;
-  regularPrice: number;
-  offerPrice: number;
-  unit: string;
-  badgeText: string;
   category: string;
+  unit: string;
+  offerPrice: number;
+  regularPrice: number | null;
+  badgeText: string;
   box: { x: number; y: number; width: number; height: number };
   confidence: number;
-  croppedImageUrl?: string | undefined;
-  matchedProductId?: string | null | undefined;
-  isNew?: boolean | undefined;
-  product?: ApiProduct | undefined;
+  flags: ExtractionFlag[];
+  needsReview: boolean;
+  matchedProductId: string | null;
+  applied: boolean;
 }
 
-export interface AutoDetectResponse {
-  success: boolean;
-  count: number;
-  items: AutoDetectedItem[];
-  applied?: boolean | undefined;
+export interface ExtractionJob {
+  id: string;
+  flyerId: string;
+  status: "queued" | "processing" | "ready" | "applied" | "failed";
+  imageUrl: string;
+  items: ExtractedItem[];
+  errorCode: string | null;
+  errorMessage: string | null;
 }
 
-/**
- * Automatically detects deals, text, prices, and bounding boxes on a flyer using AI and OCR.
- */
-export async function autoDetectFlyerHotspots(params: {
-  flyerId?: string | undefined;
-  flyerImageUrl?: string | undefined;
-  merchantId?: string | undefined;
-  useAi?: boolean | undefined;
-  apiKey?: string | undefined;
-  createMissingProducts?: boolean | undefined;
-  applyImmediately?: boolean | undefined;
-}): Promise<AutoDetectResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/flyers/auto-detect`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
+export type ExtractionSelection = Pick<
+  ExtractedItem,
+  "name" | "brand" | "description" | "category" | "unit" | "offerPrice" | "regularPrice" | "box"
+> & { itemId: string; productId: string | null };
+
+export const isExtractionRunning = (job: ExtractionJob | null | undefined) =>
+  job?.status === "queued" || job?.status === "processing";
+
+async function extractionRequest<T>(path: string, body?: object): Promise<T> {
+  const res = await adminFetch(
+    `${API_BASE}${path}`,
+    body
+      ? {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      : {},
+  );
+  const data = await res.json().catch(() => null);
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Auto-detection failed: ${errorText}`);
+    throw new Error(data?.error?.message ?? data?.error ?? `Request failed (${res.status})`);
   }
-  return res.json();
+  return data as T;
+}
+
+/** Queues a flyer to be read. Returns the running job if there already is one. */
+export async function startFlyerExtraction(flyerId: string, autoApply = false) {
+  const { job } = await extractionRequest<{ job: ExtractionJob }>(
+    `/api/v1/flyers/${encodeURIComponent(flyerId)}/extractions`,
+    { autoApply },
+  );
+  return job;
+}
+
+export async function fetchLatestExtraction(flyerId: string) {
+  const { job } = await extractionRequest<{ job: ExtractionJob | null }>(
+    `/api/v1/flyers/${encodeURIComponent(flyerId)}/extractions/latest`,
+  );
+  return job;
+}
+
+export async function applyFlyerExtraction(
+  jobId: string,
+  items: ExtractionSelection[],
+  replaceExisting: boolean,
+) {
+  return extractionRequest<{ applied: number; skipped: number }>(
+    `/api/v1/flyer-extractions/${encodeURIComponent(jobId)}/apply`,
+    { items, replaceExisting },
+  );
+}
+
+/** Waits for the flyer's extraction to finish; returns the last state seen on timeout. */
+export async function waitForExtraction(
+  flyerId: string,
+  { timeoutMs = 60_000, intervalMs = 2_000 } = {},
+) {
+  const deadline = Date.now() + timeoutMs;
+  let job = await fetchLatestExtraction(flyerId);
+  while (isExtractionRunning(job) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    job = await fetchLatestExtraction(flyerId);
+  }
+  return job;
 }
 
 /**
@@ -777,7 +846,7 @@ export async function cropBannerArea(params: {
   height: number;
   productId?: string | undefined;
 }): Promise<{ success: boolean; url: string; filename: string; pixelWidth: number; pixelHeight: number }> {
-  const res = await fetch(`${API_BASE}/api/v1/upload/crop`, {
+  const res = await adminFetch(`${API_BASE}/api/v1/upload/crop`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
